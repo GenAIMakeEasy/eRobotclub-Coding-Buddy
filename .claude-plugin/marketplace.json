@@ -1,0 +1,27 @@
+{
+  "name": "ollo-r-block-assistant",
+  "owner": {
+    "name": "GenAIMakeEasy",
+    "url": "https://github.com/GenAIMakeEasy"
+  },
+  "plugins": [
+    {
+      "name": "ollo-r-block-assistant",
+      "source": ".",
+      "description": "Helps kids (10-17) write and debug R Block programs for ROBOTIS Ollo R+ robots. Talks in English, Malay, or Chinese; keeps the block code in English.",
+      "version": "1.2.2",
+      "category": "education",
+      "tags": [
+        "ollo",
+        "r-block",
+        "robotis",
+        "robotics",
+        "education",
+        "kids-coding",
+        "multilingual",
+        "bahasa-malaysia",
+        "chinese"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "name": "ollo-r-block-assistant",
+  "version": "1.2.2",
+  "description": "Helps kids (ages 10-17) write and debug R Block programs for ROBOTIS Ollo R+ robots. Talks in English, Malay, or Chinese; keeps the block code in English.",
+  "author": {
+    "name": "GenAIMakeEasy",
+    "url": "https://github.com/GenAIMakeEasy"
+  },
+  "homepage": "https://github.com/GenAIMakeEasy/ollo-r-block-assistant",
+  "repository": "https://github.com/GenAIMakeEasy/ollo-r-block-assistant",
+  "license": "MIT",
+  "keywords": [
+    "ollo",
+    "r-block",
+    "robotis",
+    "robotics",
+    "education",
+    "stem",
+    "kids-coding",
+    "visual-programming",
+    "multilingual",
+    "bahasa-malaysia",
+    "chinese"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Ollo R Block Assistant",
+    "shortDescription": "R Block coding tutor for ROBOTIS Ollo R+ robot students",
+    "longDescription": "A tutor for kids (10-17) coding ROBOTIS R+ Ollo robots in the R Block app. Instead of dumping a finished program, it talks through the plan first, gets the student to confirm it, then builds two or three blocks at a time, waiting between phases. If something's broken, it reads the student's blocks, finds the bug, and shows the fix.\n\nWorks in English, Malay, and Chinese. Block code stays in English because that's what the R Block app shows. Jargon (sensor, threshold, variable, loop) gets defined in both languages the first time it comes up.\n\nBlock lines come out tagged with their tab and styled so students can tell apart dropdown options, variable names, and the numbers they typed.",
+    "developerName": "GenAIMakeEasy",
+    "category": "Education",
+    "capabilities": ["Interactive"],
+    "websiteURL": "https://github.com/GenAIMakeEasy/ollo-r-block-assistant",
+    "defaultPrompt": [
+      "Help me code my Ollo robot to follow a black line",
+      "My R Block program isn't working, can you check it?",
+      "Tolong help saya buat robot Ollo cari objek dengan sensor IR",
+      "帮我写一个 Ollo 机器人避障的程序"
+    ]
+  }
+}
