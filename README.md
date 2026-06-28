@@ -2,11 +2,11 @@
   <img src="assets/banner.png" alt="Ollo R Block Assistant banner">
 </p>
 
-# Ollo R Block Assistant
+# Ollo R Block Coding Buddy
 
-A plugin for Claude Code and OpenAI Codex CLI that helps kids (roughly age 10 to 17) write and debug programs for ROBOTIS R+ Ollo robots in the R Block app.
+A skill plugin for AI including Gemini, ChatGPT, Claude Code and OpenAI Codex that helps students (roughly age 10 to 17) write and debug programs for ROBOTIS R+ Ollo robots in the R Block app.
 
-It exists because generic AI coding assistants will happily hand a kid Python when they're working in R Block, and Python doesn't translate to the visual blocks. Students get stuck, get frustrated, and stop. This plugin teaches the AI to use the exact R Block wording instead, walk through the program one piece at a time, and explain what each block does as they place it.
+It exists because generic AI coding assistants do not have the latest & accurate R Block knowledge, and Python doesn't translate to the visual blocks. Students get stuck, get frustrated, and stop. This skill plugin teaches the AI to use the exact R Block wording instead, walk through the program one piece at a time, and explain what each block does as they place it.
 
 ## What you get
 
@@ -51,13 +51,7 @@ mkdir -p .agents/skills
 cp -r ollo-r-block-assistant/skills/ollo-r-block-assistant .agents/skills/
 ```
 
-Or user-scoped:
-```bash
-mkdir -p ~/.codex/skills
-cp -r ollo-r-block-assistant/skills/ollo-r-block-assistant ~/.codex/skills/
-```
-
-On Windows, swap `~/` for `C:\Users\<you>\`.
+Or just download from release page to use it directly without installlation.
 
 ## How it behaves
 
@@ -100,7 +94,7 @@ The R Block code itself never gets translated. The robot's app only knows the En
 
 PRs welcome, especially for:
 
-- Blocks or syntax patterns I missed
+- Blocks or syntax patterns missed
 - New debug heuristics
 - Translations of the skill prose into other languages
 
@@ -110,4 +104,4 @@ MIT. See [LICENSE](LICENSE).
 
 ## Acknowledgments
 
-ROBOTIS for the Ollo R+ kits and the R Block app. Anthropic and OpenAI for the plugin systems this rides on.
+ROBOTIS for the Ollo R+ kits and the R Block app. e@Robotclub for supporting and backing this development.
