@@ -74,6 +74,21 @@ Block lines come out tagged with the tab they live in, with bold for dropdown op
 
 So a student can scan a line and see at a glance: which parts are pickable options, which they typed in, which are the variables they named.
 
+
+**More examples**
+Student: give program to let the robot t move along the square track in one round as in image shown.
+<img width="939" height="673" alt="image" src="https://github.com/user-attachments/assets/42526933-fa4e-4e4f-b0df-bae374ef7f8e" />
+
+<img width="1538" height="463" alt="image" src="https://github.com/user-attachments/assets/3c57ab06-fb5d-468a-a192-51df2e4081dd" />
+
+<img width="1539" height="890" alt="image" src="https://github.com/user-attachments/assets/d29fd2e3-f0d6-47c3-83e9-7ae073255ba1" />
+
+<img width="1534" height="1248" alt="image" src="https://github.com/user-attachments/assets/cc2819a2-8322-47af-b9b7-5b831211cd62" />
+
+<img width="1583" height="879" alt="image" src="https://github.com/user-attachments/assets/b81934db-3289-4544-9a8f-70849e14b776" />
+
+<img width="1615" height="993" alt="image" src="https://github.com/user-attachments/assets/a734982e-84f0-4e5f-80ab-96ab39a151e6" />
+
 ## Languages
 
 English, Bahasa Malaysia, or Chinese (Simplified or Traditional). The assistant matches whatever the student writes in first, including mixed-language messages (common in Malaysia: "tolong help saya code ni"). Jargon like *sensor*, *threshold*, *variable* gets defined in both languages on first use, so kids pick up the English terms they'll see in tutorials and screenshots.
