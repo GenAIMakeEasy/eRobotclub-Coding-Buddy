@@ -17,6 +17,51 @@ plain-English explanation.
 **Build mode** walks a student through a program in phases rather than
 dumping the whole thing at once. A typical Build conversation looks like:
 
+<table>
+<tr>
+<td width="50%">
+
+<img src="docs/screenshots/01-entry.png" width="420" alt="Entry screen: Build vs Debug, Economy mode, Voice replies, language picker">
+
+Student opens the app and picks **Build** or **Debug**, with Economy mode,
+Voice replies, and a language switch (English / Bahasa Malaysia / 中文)
+right there on the entry screen.
+
+</td>
+<td width="50%">
+
+<img src="docs/screenshots/02-build-ask.png" width="420" alt="Build ask screen: describe the task, optionally attach a photo">
+
+For Build, the student describes the task in plain English (here: a
+line-tracing program that stops at the 5th junction), optionally attaching
+a photo of the course or robot. Block names stay in English on purpose —
+that's what R+ itself shows.
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+<img src="docs/screenshots/03-build-phase2-plan.png" width="420" alt="Build phase 2: earlier phase's variable blocks stay visible, new phase message is numbered">
+
+The build proceeds phase by phase. Earlier phases' blocks (here, the
+Phase 1 variables) stay visible as the conversation continues — nothing
+gets overwritten. New instructions come back numbered and broken into
+short lines, not a wall of text.
+
+</td>
+<td width="50%">
+
+<img src="docs/screenshots/04-build-mainloop.png" width="420" alt="Build final phase: the main Forever loop with the sensor if/else-if decision chain">
+
+The final phase assembles the main decision loop: a `Forever` block with
+the sensor-reading `if` / `else if` chain that calls the movement
+functions built in the previous phase.
+
+</td>
+</tr>
+</table>
+
 1. The student describes the task, e.g. *"Guide me on line tracing program,
    need stop and end program at junction count 5."*
 2. The assistant asks any clarifying questions it needs, then starts
