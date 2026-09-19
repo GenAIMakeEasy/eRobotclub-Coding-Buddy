@@ -223,3 +223,84 @@ def test_a_request_that_never_goes_fully_silent_is_still_cut_off():
     # other failure after the fact. Must say "timed out" explicitly.
     with pytest.raises(ModelUnavailable, match="timed out after 0.05s"):
         run(client.chat(system="s", user="u", schema=MINIMAL_SCHEMA))
+
+
+def test_a_failed_primary_model_falls_back_and_flags_the_result():
+    # The whole point: a student's turn should still succeed, quietly, when
+    # only the primary model is down -- not surface as a flat error just
+    # because ONE of two configured models happened to be unavailable.
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        calls.append(payload["model"])
+        if payload["model"] == "primary-model":
+            return httpx.Response(429, json={"error": "rate limited"})
+        return httpx.Response(200, json=choice_response("{}", model="fallback-model"))
+
+    client = OpenRouterClient(
+        api_key="test-key", model="primary-model", fallback_model="fallback-model",
+        transport=httpx.MockTransport(handler),
+    )
+    result = run(client.chat(system="s", user="u", schema=MINIMAL_SCHEMA))
+
+    assert calls == ["primary-model", "fallback-model"]
+    assert result.model == "fallback-model"
+    assert result.used_fallback is True
+    assert result.fallback_reason  # non-empty -- the original failure's own message
+
+
+def test_fallback_is_never_used_for_an_image_attached_call():
+    # fallback_model isn't guaranteed to be vision-capable -- an image
+    # call already routes to vision_model, and a text-only fallback for
+    # THAT would just trade one wrong model for another.
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        calls.append(payload["model"])
+        return httpx.Response(429, json={"error": "rate limited"})
+
+    client = OpenRouterClient(
+        api_key="test-key", model="primary-model", vision_model="vision-model",
+        fallback_model="fallback-model", transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ModelUnavailable):
+        run(client.chat(system="s", user="u", schema=MINIMAL_SCHEMA, image_base64="ZmFrZQ=="))
+
+    assert calls == ["vision-model"]
+
+
+def test_when_both_primary_and_fallback_fail_the_original_error_wins():
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        detail = "primary down" if payload["model"] == "primary-model" else "fallback down too"
+        # A 200 with an `error` body, not an HTTP error status -- so the
+        # distinguishing text in `detail` actually survives into the raised
+        # message rather than being replaced by httpx's own generic
+        # "Server error '500 ...'" text.
+        return httpx.Response(200, json={"error": detail})
+
+    client = OpenRouterClient(
+        api_key="test-key", model="primary-model", fallback_model="fallback-model",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ModelUnavailable) as exc_info:
+        run(client.chat(system="s", user="u", schema=MINIMAL_SCHEMA))
+
+    message = str(exc_info.value)
+    assert "primary down" in message
+    assert "fallback-model" in message
+    assert "fallback down too" in message
+
+
+def test_no_fallback_configured_raises_the_original_error_immediately():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"error": "down"})
+
+    client = OpenRouterClient(
+        api_key="test-key", model="primary-model", fallback_model=None,
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(ModelUnavailable):
+        run(client.chat(system="s", user="u", schema=MINIMAL_SCHEMA))

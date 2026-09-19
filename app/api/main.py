@@ -102,6 +102,12 @@ class AnswerResponse(BaseModel):
     errors: Optional[list[dict[str, Any]]] = None
     error_message: Optional[str] = None
     economy: Optional[EconomyAnswerOut] = None
+    # Set when this turn was quietly served by OPENROUTER_FALLBACK_MODEL
+    # after the configured primary model failed (see openrouter_client.py's
+    # chat()) -- a plain-language reason for the frontend to show as a
+    # transient notice, not the raw exception text (that stays in the
+    # server log for an admin, via LogWriter's own "model"/fallback fields).
+    fallback_notice: Optional[str] = None
 
 
 class AdminLoginRequest(BaseModel):
@@ -1249,6 +1255,8 @@ def create_app(
                     "answer": result.answer.model_dump(mode="json") if result.answer else None,
                     "validation_errors": [e.__dict__ for e in result.errors],
                     "model": result.model,
+                    "used_fallback": result.used_fallback,
+                    "fallback_reason": result.fallback_reason,
                     "latency_seconds": time.monotonic() - started,
                 }
             )
@@ -1291,6 +1299,11 @@ def create_app(
             answer=result.answer.model_dump(mode="json") if result.answer else None,
             render=render_tree(result.answer, result.errors) if result.answer else None,
             errors=[e.__dict__ for e in result.errors],
+            fallback_notice=(
+                "Switched to a backup AI model for this answer — the usual one was temporarily unavailable."
+                if result.used_fallback
+                else None
+            ),
         )
 
     # Cached once, not re-read from disk per blocked request -- a static

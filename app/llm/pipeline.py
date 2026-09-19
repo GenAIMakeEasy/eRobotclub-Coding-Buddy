@@ -831,6 +831,12 @@ class PipelineResult:
     errors: list[BlockError]
     raw_text: str
     model: str
+    # Carried straight through from ChatResult (see ollama_client.py) so the
+    # API layer can tell a student their turn was quietly served by a
+    # backup model, rather than that fact only ever showing up in the
+    # server's own logs.
+    used_fallback: bool = False
+    fallback_reason: Optional[str] = None
 
     @property
     def ok(self) -> bool:
@@ -1005,4 +1011,6 @@ async def answer(
             errors=validation.errors,
             raw_text=result.text,
             model=result.model,
+            used_fallback=result.used_fallback,
+            fallback_reason=result.fallback_reason,
         )

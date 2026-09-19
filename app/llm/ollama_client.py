@@ -26,6 +26,12 @@ class ModelUnavailable(Exception):
 class ChatResult:
     text: str
     model: str
+    # Set by OpenRouterClient when the configured primary model failed and a
+    # second call to OPENROUTER_FALLBACK_MODEL succeeded in its place --
+    # every other client leaves these at their defaults, since only
+    # OpenRouterClient currently has a fallback model to switch to.
+    used_fallback: bool = False
+    fallback_reason: Optional[str] = None
 
 
 class ChatClient(Protocol):

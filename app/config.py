@@ -106,7 +106,7 @@ def write_dotenv_updates(updates: dict[str, str], path: Path = REPO_ROOT / ".env
     # a blind setattr would skip).
     _MUTABLE_STRING_SETTINGS = {
         "MODEL_BACKEND", "OLLAMA_MODEL", "GEMINI_MODEL", "GEMINI_API_KEY", "OLLAMA_HOST",
-        "OPENROUTER_MODEL", "OPENROUTER_VISION_MODEL", "OPENROUTER_API_KEY", "ELEVENLABS_API_KEY",
+        "OPENROUTER_MODEL", "OPENROUTER_VISION_MODEL", "OPENROUTER_FALLBACK_MODEL", "OPENROUTER_API_KEY", "ELEVENLABS_API_KEY",
         "ELEVENLABS_VOICE_ID",
     }
     os.environ.update(updates)
@@ -222,6 +222,15 @@ OPENROUTER_TIMEOUT_SECONDS = float(os.environ.get("OPENROUTER_TIMEOUT_SECONDS", 
 # system prompt correctly -- a proven choice, not a new guess.
 OPENROUTER_VISION_MODEL = os.environ.get("OPENROUTER_VISION_MODEL", "google/gemma-4-26b-a4b-it:free")
 
+# A second model to retry with when OPENROUTER_MODEL itself fails (rate
+# limited, provider outage, etc.) -- see openrouter_client.py's chat() for
+# the actual fallback logic. Empty disables fallback entirely (falls
+# straight back to today's behavior: one failure surfaces as an error to
+# the student). Defaults to a different vendor than OPENROUTER_MODEL's own
+# default, on the theory that a single provider's own outage shouldn't take
+# down the fallback with it.
+OPENROUTER_FALLBACK_MODEL = os.environ.get("OPENROUTER_FALLBACK_MODEL", "deepseek/deepseek-v4-flash")
+
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
 # A real secret key starts with "sk_" -- the "key ID" ElevenLabs' own
 # dashboard shows by default is NOT it (caught live: a pasted value turned
@@ -234,7 +243,12 @@ ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
 # clarifying/plan-confirmation questions (kind="ask", no blocks), not part
 # of the Build/Debug pipeline at all, so it has no "which backend" concept.
 ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")  # "Rachel", a premade voice
-ELEVENLABS_TTS_MODEL = os.environ.get("ELEVENLABS_TTS_MODEL", "eleven_turbo_v2_5")
+# eleven_turbo_v2_5 was ElevenLabs' own default here until they deprecated
+# it outright ("outclassed by Flash") -- eleven_flash_v2_5 costs the exact
+# same 0.5 credits/character and is the actively maintained replacement,
+# with lower latency to boot. Verified live against ElevenLabs' own current
+# docs before switching, not assumed from memory.
+ELEVENLABS_TTS_MODEL = os.environ.get("ELEVENLABS_TTS_MODEL", "eleven_flash_v2_5")
 ELEVENLABS_TIMEOUT_SECONDS = float(os.environ.get("ELEVENLABS_TIMEOUT_SECONDS", "30"))
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")

@@ -59,6 +59,12 @@ class OpenRouterClient:
     # skills-draft-from-image endpoint. See config.OPENROUTER_VISION_MODEL's
     # own comment for the full story. Only image-attached calls use this.
     vision_model: str = config.OPENROUTER_VISION_MODEL
+    # See config.OPENROUTER_FALLBACK_MODEL's own comment. Only used for the
+    # text path (image_base64 is None) -- a model picked as a fallback for
+    # the primary text model has no guarantee of being vision-capable, and
+    # config doesn't currently give this class a separate fallback-for-
+    # vision setting to reach for.
+    fallback_model: Optional[str] = config.OPENROUTER_FALLBACK_MODEL
     timeout_seconds: float = config.OPENROUTER_TIMEOUT_SECONDS
     transport: Optional[httpx.AsyncBaseTransport] = None  # tests inject httpx.MockTransport
 
@@ -99,6 +105,29 @@ class OpenRouterClient:
         else:
             messages.append({"role": "user", "content": user})
 
+        try:
+            return await self._send(model, messages, schema, temperature)
+        except ModelUnavailable as primary_exc:
+            # Fallback only covers the text path -- see fallback_model's own
+            # comment above for why an image-attached call never reaches
+            # here (model is already self.vision_model in that case, and
+            # fallback_model isn't guaranteed to support images at all).
+            if image_base64 or not self.fallback_model or self.fallback_model == model:
+                raise
+            try:
+                result = await self._send(self.fallback_model, messages, schema, temperature)
+            except ModelUnavailable as fallback_exc:
+                # Both failed -- surface the ORIGINAL failure (the one the
+                # admin actually configured and would want to investigate),
+                # not the fallback's, but mention both so nothing is lost.
+                raise ModelUnavailable(
+                    f"{primary_exc} (fallback model {self.fallback_model!r} also failed: {fallback_exc})"
+                ) from primary_exc
+            result.used_fallback = True
+            result.fallback_reason = str(primary_exc)
+            return result
+
+    async def _send(self, model: str, messages: list[dict], schema: dict, temperature: float) -> ChatResult:
         payload = {
             "model": model,
             "messages": messages,
