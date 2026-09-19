@@ -129,6 +129,20 @@
     <div class="key-hint" id="elevenlabsKeyStatus"></div>
     <div class="note">Independent of the model backend above — used only to read the assistant's clarifying questions aloud when a student turns on "Voice replies". Must be a real secret key starting with <code>sk_</code>, not the "key ID" ElevenLabs' dashboard shows by default — that's a different value and won't work.</div>
 
+    <label>Voice</label>
+    <select id="elevenlabsVoiceSelect">
+      <option value="21m00Tcm4TlvDq8ikWAM">Rachel — the original default (ElevenLabs' own premade voice, no Voice Library royalty)</option>
+      <option value="l32B8XDoylOsZKiSdfhE">Carla (Sweet, Soft and Meditative — Voice Library, supports English + Chinese + 11 more, no surcharge listed)</option>
+      <option value="Zj546qYk9Gggvp2heL5P">Brianna (clear, cinematic narration tone — Voice Library, English only, no surcharge listed)</option>
+      <option value="JnLbZVB3BDIX9KH4Bc1H">Mia (Lively — young, refreshing female voice — Voice Library, English only, no surcharge listed)</option>
+      <option value="EVy5l1wEi54nXdQwAJJf">Chloe (Sassy, Spoiled Princess — playful teenager tone, not a plain narration voice — Voice Library, English only, no surcharge listed)</option>
+      <option value="6z4qitu552uH4K9c5vrj">Anna (Soft, Husky and Whispery — breathy/ASMR-leaning tone, not a plain narration voice — Voice Library, English only, no surcharge listed)</option>
+      <option value="tgkNj6krX4qIUNYOcEVg">Peace (Yoga & Meditation — calm, warm, unhurried — Voice Library, English + 8 more, no surcharge listed)</option>
+      <option value="__custom__">Custom / other…</option>
+    </select>
+    <div class="note">All three cost the same per character — ElevenLabs bills by MODEL (eleven_flash_v2_5: 0.5 credits/char), not by voice, and none of these three show a Voice Library royalty surcharge on their public page. A small number of marketplace voices do carry an extra per-character fee — check the voice's own page on elevenlabs.io/voices before adding one here as "Custom".</div>
+    <input type="text" id="elevenlabsVoiceId" placeholder="21m00Tcm4TlvDq8ikWAM" />
+
     <button id="saveBtn">Save &amp; apply</button>
     <div class="note">Applies immediately (no restart) and is saved to .env.</div>
     <div class="status" id="status"></div>
@@ -238,6 +252,8 @@ async function loadSettings() {
   syncOpenrouterSelectFromText();
   el('openrouterKeyStatus').textContent = s.openrouter_api_key_set ? 'A key is currently set.' : 'No key set yet.';
   el('elevenlabsKeyStatus').textContent = s.elevenlabs_api_key_set ? 'A key is currently set.' : 'No key set yet — voice replies will silently stay off.';
+  el('elevenlabsVoiceId').value = s.elevenlabs_voice_id;
+  syncElevenlabsVoiceSelectFromText();
 }
 
 // The dropdown is a quick-picker for the models actually verified live
@@ -262,6 +278,26 @@ el('openrouterModelSelect').addEventListener('change', () => {
   }
 });
 
+// Same quick-picker-over-a-real-text-field pattern as the OpenRouter
+// model select above.
+function syncElevenlabsVoiceSelectFromText() {
+  const select = el('elevenlabsVoiceSelect');
+  const current = el('elevenlabsVoiceId').value.trim();
+  const known = Array.from(select.options).some(o => o.value === current);
+  select.value = known ? current : '__custom__';
+  el('elevenlabsVoiceId').readOnly = known;
+}
+el('elevenlabsVoiceSelect').addEventListener('change', () => {
+  const select = el('elevenlabsVoiceSelect');
+  if (select.value === '__custom__') {
+    el('elevenlabsVoiceId').readOnly = false;
+    el('elevenlabsVoiceId').focus();
+  } else {
+    el('elevenlabsVoiceId').value = select.value;
+    el('elevenlabsVoiceId').readOnly = true;
+  }
+});
+
 const modelFor = (body) => ({ local: body.ollama_model, gemini: body.gemini_model, openrouter: body.openrouter_model }[body.backend]);
 
 el('saveBtn').addEventListener('click', async () => {
@@ -273,6 +309,7 @@ el('saveBtn').addEventListener('click', async () => {
     openrouter_model: el('openrouterModel').value.trim() || null,
     openrouter_api_key: el('openrouterKey').value.trim() || null,
     elevenlabs_api_key: el('elevenlabsKey').value.trim() || null,
+    elevenlabs_voice_id: el('elevenlabsVoiceId').value.trim() || null,
   };
   const res = await fetch('/admin/settings', {
     method: 'POST',

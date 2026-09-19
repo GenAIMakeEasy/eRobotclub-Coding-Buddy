@@ -242,6 +242,32 @@ def test_elevenlabs_key_is_independent_of_backend(tmp_path):
         assert app.state.tts_client.api_key == "a-real-elevenlabs-key"
 
 
+def test_elevenlabs_voice_id_hot_swaps_independently_of_the_key(tmp_path):
+    # An admin picking a different voice from the dropdown shouldn't also
+    # have to re-enter the API key -- both fields are independently
+    # optional on AdminSettingsUpdate, and either one alone must still
+    # trigger the hot-swap (see the "or" in update_admin_settings).
+    api, app, _ = make_admin_app(tmp_path)
+    with api:
+        token = api.post("/admin/login", json={"password": "right-password"}).json()["token"]
+        api.post(
+            "/admin/settings",
+            json={"backend": "local", "elevenlabs_api_key": "a-real-elevenlabs-key"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        response = api.post(
+            "/admin/settings",
+            json={"backend": "local", "elevenlabs_voice_id": "l32B8XDoylOsZKiSdfhE"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        assert response.json()["elevenlabs_voice_id"] == "l32B8XDoylOsZKiSdfhE"
+        # The key set on the earlier call must survive -- switching voice
+        # alone must not silently drop it.
+        assert app.state.tts_client.api_key == "a-real-elevenlabs-key"
+        assert app.state.tts_client.voice_id == "l32B8XDoylOsZKiSdfhE"
+
+
 def test_the_raw_elevenlabs_key_is_never_returned(tmp_path):
     api, app, _ = make_admin_app(tmp_path)
     with api:

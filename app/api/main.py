@@ -133,6 +133,7 @@ class AdminSettingsResponse(BaseModel):
     # Independent of `backend` -- TTS for the assistant's own clarifying/
     # plan-confirmation questions, not one of the Build/Debug model choices.
     elevenlabs_api_key_set: bool
+    elevenlabs_voice_id: str
 
 
 class AdminSettingsUpdate(BaseModel):
@@ -143,6 +144,7 @@ class AdminSettingsUpdate(BaseModel):
     openrouter_model: Optional[str] = Field(default=None, max_length=200)
     openrouter_api_key: Optional[str] = Field(default=None, max_length=500)
     elevenlabs_api_key: Optional[str] = Field(default=None, max_length=500)
+    elevenlabs_voice_id: Optional[str] = Field(default=None, max_length=200)
 
 
 class AdminRestartRequest(BaseModel):
@@ -689,6 +691,7 @@ def create_app(
         "gemini_api_key_set": bool(env_file_values.get("GEMINI_API_KEY")),
         "openrouter_api_key_set": bool(env_file_values.get("OPENROUTER_API_KEY")),
         "elevenlabs_api_key_set": bool(env_file_values.get("ELEVENLABS_API_KEY")),
+        "elevenlabs_voice_id": env_file_values.get("ELEVENLABS_VOICE_ID", config.ELEVENLABS_VOICE_ID),
     }
 
     @asynccontextmanager
@@ -797,6 +800,7 @@ def create_app(
             openrouter_model=s["openrouter_model"],
             openrouter_api_key_set=s["openrouter_api_key_set"],
             elevenlabs_api_key_set=s["elevenlabs_api_key_set"],
+            elevenlabs_voice_id=s["elevenlabs_voice_id"],
         )
 
     @app.post("/admin/settings", response_model=AdminSettingsResponse)
@@ -811,6 +815,7 @@ def create_app(
         new_openrouter_model = payload.openrouter_model or s["openrouter_model"]
         new_openrouter_key_set = s["openrouter_api_key_set"] or bool(payload.openrouter_api_key)
         new_elevenlabs_key_set = s["elevenlabs_api_key_set"] or bool(payload.elevenlabs_api_key)
+        new_elevenlabs_voice_id = payload.elevenlabs_voice_id or s["elevenlabs_voice_id"]
 
         if payload.backend == "gemini" and not new_gemini_key_set:
             raise HTTPException(
@@ -853,6 +858,8 @@ def create_app(
             env_updates["OPENROUTER_API_KEY"] = payload.openrouter_api_key
         if payload.elevenlabs_api_key:
             env_updates["ELEVENLABS_API_KEY"] = payload.elevenlabs_api_key
+        if payload.elevenlabs_voice_id:
+            env_updates["ELEVENLABS_VOICE_ID"] = payload.elevenlabs_voice_id
         config.write_dotenv_updates(env_updates, path=env_path)
 
         s["backend"] = payload.backend
@@ -862,13 +869,16 @@ def create_app(
         s["openrouter_model"] = new_openrouter_model
         s["openrouter_api_key_set"] = new_openrouter_key_set
         s["elevenlabs_api_key_set"] = new_elevenlabs_key_set
+        s["elevenlabs_voice_id"] = new_elevenlabs_voice_id
 
         # Hot-swap, independent of the backend branch below (TTS has no
         # "which backend" concept — see AdminSettingsResponse's comment).
-        if payload.elevenlabs_api_key:
+        # Either a new key OR just a new voice should take effect
+        # immediately, not only when the key itself changes.
+        if payload.elevenlabs_api_key or payload.elevenlabs_voice_id:
             state.tts_client = ElevenLabsTTS(
-                api_key=payload.elevenlabs_api_key,
-                voice_id=state.tts_client.voice_id,
+                api_key=payload.elevenlabs_api_key or state.tts_client.api_key,
+                voice_id=new_elevenlabs_voice_id,
                 model_id=state.tts_client.model_id,
                 timeout_seconds=state.tts_client.timeout_seconds,
             )
@@ -904,6 +914,7 @@ def create_app(
             openrouter_model=s["openrouter_model"],
             openrouter_api_key_set=s["openrouter_api_key_set"],
             elevenlabs_api_key_set=s["elevenlabs_api_key_set"],
+            elevenlabs_voice_id=s["elevenlabs_voice_id"],
         )
 
     _PROMPT_FIELDS = ("system_template", "build_extra", "debug_extra")
