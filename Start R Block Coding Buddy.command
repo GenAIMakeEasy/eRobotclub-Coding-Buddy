@@ -51,12 +51,42 @@ SERVER_PID=$!
 # it's not the same link twice. Fine for reaching the app from off the
 # school wifi right now; a stable, unchanging address needs a real domain
 # routed through Cloudflare (a Named Tunnel) instead.
+#
+# Caught live: when this runs at login (via the LaunchAgent, RunAtLoad),
+# it can fire before wifi has even associated yet, not just before DNS
+# has settled -- cloudflared then fails its very first connection attempt
+# and just exits (no retry of its own), silently leaving no public link
+# for the rest of the session. A fixed "sleep 10" here would be a guess
+# (too short some days, wasted time on others) -- waiting for a REAL
+# network check to succeed, capped at 30s, adapts to however long it
+# actually takes instead of guessing. The retry loop below is kept as a
+# backstop for a hiccup that happens after this check already passed.
+echo "Waiting for network..."
+for i in $(seq 1 30); do
+  curl -s -m 2 -o /dev/null https://1.1.1.1 && break
+  sleep 1
+done
+
 TUNNEL_PID=""
 TUNNEL_LOG="/tmp/rblock-cloudflared.log"
 if command -v cloudflared >/dev/null 2>&1; then
-  : > "$TUNNEL_LOG"
-  cloudflared tunnel --url "http://localhost:$PORT" > "$TUNNEL_LOG" 2>&1 &
-  TUNNEL_PID=$!
+  for attempt in 1 2 3; do
+    : > "$TUNNEL_LOG"
+    cloudflared tunnel --url "http://localhost:$PORT" > "$TUNNEL_LOG" 2>&1 &
+    TUNNEL_PID=$!
+    for i in $(seq 1 15); do
+      grep -q 'trycloudflare\.com' "$TUNNEL_LOG" 2>/dev/null && break
+      kill -0 "$TUNNEL_PID" 2>/dev/null || break
+      sleep 1
+    done
+    if grep -q 'trycloudflare\.com' "$TUNNEL_LOG" 2>/dev/null; then
+      break
+    fi
+    echo "Cloudflare Tunnel attempt $attempt didn't come up -- retrying..."
+    kill "$TUNNEL_PID" 2>/dev/null
+    TUNNEL_PID=""
+    sleep 2
+  done
 fi
 
 # Both processes die together when this window closes -- the whole point

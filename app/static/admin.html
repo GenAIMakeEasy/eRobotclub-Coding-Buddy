@@ -110,12 +110,12 @@
     <div id="openrouterFields">
       <label>OpenRouter model</label>
       <select id="openrouterModelSelect">
-        <option value="deepseek/deepseek-v4-flash-0731">DeepSeek V4 Flash 0731 — recommended (pinned dated snapshot, not the rolling "latest" alias — ~$0.035/$0.10 per M tokens, cheaper than the three below)</option>
-        <option value="xiaomi/mimo-v2.5">Xiaomi MiMo V2.5 (~$0.14/$0.28 per M tokens, most complete output in testing)</option>
-        <option value="minimax/minimax-m2.5">MiniMax M2.5 (~$0.22/$0.90 per M tokens, smaller context window)</option>
+        <option value="z-ai/glm-5.3-flash">Z.ai GLM 5.3 Flash — recommended (75.8% reference accuracy; confirmed live against our real schema: 7.2s, $0.0014/request)</option>
+        <option value="deepseek/deepseek-v4-flash">DeepSeek V4 Flash 0423 (75.1% reference accuracy; confirmed live against our real schema: 38.6s, $0.0017/request)</option>
+        <option value="openai/gpt-5.6-luna">OpenAI GPT-5.6 Luna (70.7% reference accuracy — but 400s outright against our real schema: OpenAI's strict JSON mode rejects a nested object missing "additionalProperties: false". Do not select until the schema is fixed for strict-mode compatibility.)</option>
         <option value="__custom__">Custom / other…</option>
       </select>
-      <div class="note">The three paid options above were picked from a live 12-model comparison specifically for the admin skill-save block render (app/skills/demo.py) — each converged on roughly 1-in-3 tries there, no worse than the model previously recommended here. That test used one unusually complex reference skill, not typical student Build/Debug turns — if you notice a quality drop on normal requests, that's a different signal than what this comparison measured.</div>
+      <div class="note">Reference accuracy % is from an external benchmark (per-task, not measured against this app's own pipeline). Timing/cost figures marked "confirmed live" were measured here, against the real Build system prompt + full recursive Answer Contract schema, via OpenRouter's usage.cost field. Xiaomi MiMo was tried and dropped: it's a reasoning model that burns unpredictable time "thinking" before answering even trivial prompts, and hung for 8+ minutes against our real schema despite a fast reference-benchmark score — its speed advantage there didn't carry over to this app's workload.</div>
       <input type="text" id="openrouterModel" placeholder="google/gemma-4-26b-a4b-it:free" />
       <div class="note">Verified live against the real pipeline (system prompt + skill context + full Answer Contract validation), not just a quick chat test — see the model's own comment in .env / app/config.py for the full picture. The "openrouter/free" auto-router is NOT recommended, it can route to a model that doesn't handle this schema (confirmed live).</div>
 
