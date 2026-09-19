@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>R Block Coding Buddy — Ollo Skills</title>
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: oklch(0.968 0.006 78);
+    color: oklch(0.245 0.015 60);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+    padding: 32px 16px 80px 16px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  h1 { font-size: 20px; font-weight: 650; margin: 0; }
+  .back { font-size: 13px; color: oklch(0.640 0.155 52); text-decoration: none; font-weight: 600; }
+  .sub { font-size: 13px; color: oklch(0.615 0.012 62); margin-bottom: 22px; }
+  .card {
+    background: #fff; border: 1px solid oklch(0.905 0.007 70); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 2px 10px oklch(0.2 0 0 / 0.04);
+  }
+  .card-row { display: flex; align-items: center; gap: 10px; }
+  .card-row h3 { font-size: 15px; margin: 0; flex: 1; }
+  .card-row .muted { font-size: 12px; color: oklch(0.615 0.012 62); }
+  .pill-btn {
+    padding: 6px 12px; border-radius: 8px; border: 1.5px solid oklch(0.905 0.007 70);
+    background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; color: oklch(0.360 0.02 60);
+  }
+  .pill-btn.danger { border-color: oklch(0.855 0.090 25); color: oklch(0.510 0.140 30); }
+  .pill-btn.primary { border-color: oklch(0.640 0.155 52); color: oklch(0.640 0.155 52); }
+  label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.6px; color: oklch(0.455 0.014 60); margin: 16px 0 6px 0; }
+  label.first { margin-top: 0; }
+  input[type=text], input[type=password], textarea {
+    width: 100%; padding: 10px 12px; border-radius: 9px; border: 1.5px solid oklch(0.905 0.007 70);
+    font-size: 14px; font-family: inherit; outline: none; background: oklch(0.985 0.004 84); resize: vertical;
+  }
+  textarea.code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.5;
+    white-space: pre; tab-size: 2;
+  }
+  input:focus, textarea:focus { border-color: oklch(0.640 0.155 52); }
+  .hint { font-size: 12px; color: oklch(0.615 0.012 62); margin-top: 4px; line-height: 1.5; }
+  .fn-block {
+    border: 1.5px solid oklch(0.905 0.007 70); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
+    background: oklch(0.985 0.004 84);
+  }
+  .fn-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .fn-head input { flex: 1; font-weight: 650; }
+  .fn-remove {
+    flex-shrink: 0; width: 30px; height: 38px; border-radius: 8px; border: 1.5px solid oklch(0.905 0.007 70);
+    background: #fff; color: oklch(0.510 0.140 30); font-size: 16px; cursor: pointer; line-height: 1;
+  }
+  .add-row {
+    padding: 7px 12px; border-radius: 8px; border: 1.5px dashed oklch(0.740 0.010 65);
+    background: none; color: oklch(0.455 0.014 60); font-size: 13px; cursor: pointer;
+  }
+  .primary-btn {
+    margin-top: 22px; padding: 13px; border-radius: 11px; border: none; width: 100%;
+    background: oklch(0.640 0.155 52); color: #fff; font-size: 15px; font-weight: 650;
+    font-family: inherit; cursor: pointer;
+  }
+  .status { margin-top: 14px; padding: 10px 12px; border-radius: 10px; font-size: 13px; display: none; }
+  .status.ok { display: block; background: oklch(0.968 0.018 155); color: oklch(0.360 0.075 155); border: 1px solid oklch(0.870 0.045 155); }
+  .status.err { display: block; background: oklch(0.963 0.026 25); color: oklch(0.330 0.075 30); border: 1px solid oklch(0.855 0.090 25); }
+  #loginCard { max-width: 440px; margin: 40px auto; }
+  #editor { display: none; }
+  .draft-box {
+    border: 1.5px dashed oklch(0.740 0.140 300); border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 18px; background: oklch(0.975 0.014 300);
+  }
+  .draft-box h4 { margin: 0 0 4px 0; font-size: 13px; font-weight: 700; color: oklch(0.420 0.090 300); }
+  .draft-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .draft-row input[type=text] { flex: 1; min-width: 160px; }
+  .draft-row input[type=file] { font-size: 12px; }
+  .pill-btn.ai { border-color: oklch(0.640 0.140 300); color: oklch(0.500 0.140 300); flex-shrink: 0; }
+  .status.progress { display: flex; align-items: center; gap: 9px; background: oklch(0.968 0.018 155);
+    color: oklch(0.360 0.075 155); border: 1px solid oklch(0.870 0.045 155); }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid oklch(0.870 0.045 155); border-top-color: oklch(0.360 0.075 155);
+    animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #previewBox { display: none; margin-top: 16px; }
+  #previewBox h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: oklch(0.455 0.014 60); margin: 14px 0 6px 0; }
+  #previewBox h4.first { margin-top: 0; }
+  #previewBox pre {
+    white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px; line-height: 1.5; background: oklch(0.985 0.004 84); border: 1.5px solid oklch(0.905 0.007 70);
+    border-radius: 9px; padding: 10px 12px; margin: 0;
+  }
+  #previewCode { font-size: 13px; }
+  #previewCode .blk-fallback {
+    white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px; line-height: 1.5; background: oklch(0.985 0.004 84); border: 1.5px solid oklch(0.905 0.007 70);
+    border-radius: 9px; padding: 10px 12px; margin: 0;
+  }
+  .blk-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 9px; }
+  .blk-pill { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 12.5px; }
+  .blk-body { margin-left: 16px; padding: 4px 0 2px 8px; border-left: 2px solid; }
+  .blk-else-label { font-size: 12px; font-weight: 650; padding: 3px 6px; }
+  .blk-bad-note { font-size: 11.5px; color: oklch(0.510 0.140 30); padding: 2px 4px 6px 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card" id="loginCard" style="display:none;">
+    <h1>R Block Buddy — Ollo Skills</h1>
+    <div class="sub">Log in to manage strategy patterns.</div>
+    <label class="first">Admin password</label>
+    <input type="password" id="password" placeholder="Password" />
+    <button class="primary-btn" id="loginBtn">Log in</button>
+    <div class="status" id="loginStatus"></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="top">
+      <h1>Ollo Coding Skills</h1>
+      <a href="/admin.html" class="back">← Back to admin</a>
+    </div>
+    <div class="sub">Strategy patterns (line-following, obstacle avoidance, ...) the assistant draws on when a student's request matches one — matched by meaning, not just keywords, so wording doesn't need to be exact.</div>
+
+    <div id="list"></div>
+    <button class="pill-btn primary" id="newBtn">+ New skill</button>
+
+    <div class="card" id="editor">
+      <div class="card-row"><h3 id="editorTitle">New skill</h3></div>
+
+      <div class="draft-box">
+        <h4>✨ Draft from a photo</h4>
+        <div class="hint" style="margin:0;">Attach a photo of a reference program and the AI will write a first draft below for you to review and edit — nothing is saved until you press Save skill.</div>
+        <div class="draft-row">
+          <input type="file" id="draftImage" accept="image/*" />
+          <button type="button" class="pill-btn ai" id="draftBtn">Draft with AI</button>
+        </div>
+        <input type="text" id="draftNote" placeholder="Anything the photo doesn't show, e.g. sensor ports (optional)" style="margin-top:8px;" />
+        <div class="status" id="draftStatus"></div>
+      </div>
+
+      <label class="first">Skill id</label>
+      <input type="text" id="f_id" placeholder="e.g. obstacle-avoidance (lowercase, hyphens only)" />
+      <div class="hint">Cannot be changed after the first save.</div>
+
+      <label>Name</label>
+      <input type="text" id="f_name" placeholder="e.g. Obstacle Avoidance" />
+
+      <label>Trigger words (comma-separated)</label>
+      <input type="text" id="f_triggers" placeholder="e.g. obstacle, avoid, wall" />
+      <div class="hint">Used only as a fallback if the meaning-based match is temporarily unavailable.</div>
+
+      <label>When this applies (optional)</label>
+      <textarea id="f_intro" rows="2" placeholder="A short description of the technique and when to use it."></textarea>
+
+      <label style="margin-top:22px;">Functions</label>
+      <div class="hint" style="margin-top:-2px; margin-bottom:10px;">
+        Write each one like a function: plain pseudocode, if/elif/else, <code>call OTHER_FUNCTION</code> to reuse another one below. This is exactly what the assistant reads — write it like you'd sketch it on a whiteboard.
+      </div>
+      <div id="functionsList"></div>
+      <button class="add-row" data-add="function">+ Add function</button>
+
+      <button class="primary-btn" id="saveBtn">Save skill</button>
+      <button class="pill-btn" id="cancelBtn" style="margin-top:10px; width:100%;">Cancel</button>
+      <div class="status" id="editorStatus"></div>
+
+      <div id="previewBox">
+        <h4 class="first">What the AI reads (Build/Debug context)</h4>
+        <pre id="previewAi"></pre>
+        <h4>What a student sees in Economy mode — message</h4>
+        <pre id="previewMsg"></pre>
+        <h4>What a student sees in Economy mode — sample code</h4>
+        <div id="previewCode"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let token = sessionStorage.getItem('admin_token');
+const el = (id) => document.getElementById(id);
+const showStatus = (id, msg, ok) => {
+  const s = el(id);
+  s.textContent = msg;
+  s.className = 'status ' + (ok ? 'ok' : 'err');
+};
+
+function emptySkill() {
+  return { id: '', name: '', triggers: [], intro: '', functions: [] };
+}
+let editingIsNew = true;
+
+/* A small, dependency-free renderer for the SAME render_tree()-shaped JSON
+   (app/schema/render.py) the real React app's BlockPanel/CBlock components
+   consume -- this page has no React, so it's not the same code, but it
+   reads the same node shape ({p, cat, conds, c, body, elseBody, bad,
+   badMessages}) and the same category hues index.html's own CAT table
+   uses, so a coach previewing here sees something recognizably close to
+   what a student's screen actually shows, not just a guess at it. */
+const CAT_HUES = { Control: 275, Variable: 68, Sensing: 310, Motion: 196, Calculation: 150, Function: 340, Screen: 245, Sound: 105 };
+function catColor(name) {
+  const h = CAT_HUES[name] ?? CAT_HUES.Control;
+  return {
+    fill: `oklch(0.800 0.105 ${h})`, ink: `oklch(0.290 0.075 ${h})`,
+    slot: `oklch(0.955 0.020 ${h})`, slotEdge: `oklch(0.640 0.070 ${h})`,
+  };
+}
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function blkPartHtml(part, node, c) {
+  const kind = part[0];
+  if (kind === 't') return `<span>${escapeHtml(part[1])}</span>`;
+  if (kind === 'd' || kind === 'v') {
+    return `<span class="blk-pill" style="background:${c.slot}; border:1px solid ${c.slotEdge};">${escapeHtml(part[1])}</span>`;
+  }
+  if (kind === 'g') return `<span style="opacity:.6;">⚙</span>`;
+  if (kind === 'cond') {
+    const cond = (node.conds || [])[part[1]];
+    return cond ? renderBlkNode(cond) : '';
+  }
+  return '';
+}
+function isIfThenNode(n) {
+  // Same check CBlock itself uses (index.html): a rendered if/then's
+  // first part is the gear-icon marker.
+  return !!(n.p && n.p[0] && n.p[0][0] === 'g');
+}
+
+function renderBlkNode(node) {
+  // Flatten an if/elif/.../else chain to the SAME indentation for every
+  // branch -- porting CBlock's own chain-fusing logic (index.html),
+  // which the real student app already renders with. Without this, each
+  // elif read as one level MORE nested than the one before it
+  // (technically true to the raw `elseBody` structure, but reads as
+  // deeply nested code instead of a normal flat if/elif/else) -- exactly
+  // what a coach flagged as hard to see.
+  const chain = [node];
+  while (true) {
+    const last = chain[chain.length - 1];
+    if (last.elseBody && last.elseBody.length === 1 && last.elseBody[0].c && isIfThenNode(last.elseBody[0])) {
+      chain.push(last.elseBody[0]);
+    } else break;
+  }
+  const tailElse = chain[chain.length - 1].elseBody; // a real else, or undefined
+  const c0 = catColor(chain[0].cat);
+  const anyBad = chain.some((seg) => seg.bad);
+
+  let html = '<div style="margin-bottom:4px;">';
+  html += `<div style="border-radius:9px; background:${anyBad ? 'oklch(0.963 0.026 25)' : c0.fill}; `
+    + `${anyBad ? 'border:2px solid oklch(0.600 0.180 25);' : ''}">`;
+  chain.forEach((seg, i) => {
+    const c = catColor(seg.cat);
+    const parts = (seg.p || []).map((p) => blkPartHtml(p, seg, c)).join(' ');
+    if (i > 0) html += `<div style="margin:2px 9px 3px 9px; border-top:1.5px dashed ${c.slotEdge};"></div>`;
+    html += `<div class="blk-row" style="color:${c.ink};">${parts}</div>`;
+    if (seg.bad && seg.badMessages && seg.badMessages.length) {
+      html += `<div class="blk-bad-note">${seg.badMessages.map(escapeHtml).join(' · ')}</div>`;
+    }
+    if (seg.c) {
+      html += `<div class="blk-body" style="border-left-color:${c.fill};">${(seg.body || []).map(renderBlkNode).join('')}</div>`;
+    }
+  });
+  if (tailElse && tailElse.length) {
+    html += `<div class="blk-else-label" style="color:${c0.ink};">else</div>`;
+    html += `<div class="blk-body" style="border-left-color:${c0.fill};">${tailElse.map(renderBlkNode).join('')}</div>`;
+  }
+  html += '</div></div>';
+  return html;
+}
+function renderBlockTree(tree) {
+  return (tree || []).map(renderBlkNode).join('');
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts && opts.headers) },
+  });
+  if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
+  return res;
+}
+
+function showLogin() {
+  token = null;
+  sessionStorage.removeItem('admin_token');
+  el('loginCard').style.display = 'block';
+  el('app').style.display = 'none';
+}
+
+el('loginBtn').addEventListener('click', async () => {
+  const password = el('password').value;
+  try {
+    const res = await fetch('/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) { showStatus('loginStatus', 'Wrong password, or admin login is not configured.', false); return; }
+    const body = await res.json();
+    token = body.token;
+    sessionStorage.setItem('admin_token', token);
+    el('loginCard').style.display = 'none';
+    el('app').style.display = 'block';
+    await refreshList();
+  } catch (e) {
+    showStatus('loginStatus', 'Could not reach the server.', false);
+  }
+});
+
+async function refreshList() {
+  const res = await api('/admin/skills');
+  if (!res.ok) return;
+  const skills = await res.json();
+  const list = el('list');
+  list.innerHTML = '';
+  if (!skills.length) {
+    list.innerHTML = '<div class="hint">No skills yet — add the first one below.</div>';
+  }
+  for (const s of skills) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-row">
+        <h3>${s.name}</h3>
+        <span class="muted">${s.functions.length} function${s.functions.length === 1 ? '' : 's'}</span>
+        <button class="pill-btn" data-edit="${s.id}">Edit</button>
+        <button class="pill-btn danger" data-delete="${s.id}">Delete</button>
+      </div>`;
+    card.querySelector('[data-edit]').addEventListener('click', () => openEditor(s));
+    card.querySelector('[data-delete]').addEventListener('click', () => deleteSkill(s.id, s.name));
+    list.appendChild(card);
+  }
+}
+
+async function deleteSkill(id, name) {
+  if (!confirm(`Delete the "${name}" skill? This can't be undone.`)) return;
+  const res = await api(`/admin/skills/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (res.ok) await refreshList();
+}
+
+function makeFunctionRow(container, fn) {
+  const row = document.createElement('div');
+  row.className = 'fn-block';
+  row.innerHTML = `
+    <div class="fn-head">
+      <input type="text" placeholder="function name, e.g. line_trace" data-f="name" value="${(fn.name || '').replace(/"/g, '&quot;')}" />
+      <button type="button" class="fn-remove">×</button>
+    </div>
+    <textarea class="code" data-f="body" rows="8" placeholder="if IR3 < IR and IR4 > IR:
+  stop Right motor
+  rotate Left clockwise
+elif IR3 > IR and IR4 < IR:
+  stop Left motor
+  rotate Right counterclockwise
+else:
+  move Forward">${fn.body || ''}</textarea>
+    <div class="hint" style="margin-top:8px;">Usage instructions — shown directly to the student in Economy mode (no AI involved), so write it for them, not for the assistant.</div>
+    <input type="text" placeholder="e.g. Adjust IR and SPEED for your own track before running." data-f="usage_note" value="${(fn.usage_note || '').replace(/"/g, '&quot;')}" style="margin-top:6px;" />`;
+  row.querySelector('.fn-remove').addEventListener('click', () => row.remove());
+  container.appendChild(row);
+  return row;
+}
+
+function readFunctions(container) {
+  return [...container.querySelectorAll('.fn-block')]
+    .map(r => ({
+      name: r.querySelector('[data-f=name]').value.trim(),
+      body: r.querySelector('[data-f=body]').value,
+      usage_note: r.querySelector('[data-f=usage_note]').value.trim(),
+    }))
+    .filter(f => f.name);
+}
+
+document.querySelectorAll('[data-add]').forEach(btn => {
+  btn.addEventListener('click', () => makeFunctionRow(el('functionsList'), {}));
+});
+
+function openEditor(skill) {
+  editingIsNew = !skill.id;
+  el('editorTitle').textContent = editingIsNew ? 'New skill' : `Edit: ${skill.name}`;
+  el('f_id').value = skill.id || '';
+  el('f_id').disabled = !editingIsNew;
+  el('f_name').value = skill.name || '';
+  el('f_triggers').value = (skill.triggers || []).join(', ');
+  el('f_intro').value = skill.intro || '';
+
+  el('functionsList').innerHTML = '';
+  (skill.functions || []).forEach(fn => makeFunctionRow(el('functionsList'), fn));
+
+  el('editorStatus').className = 'status';
+  el('draftStatus').className = 'status';
+  el('draftImage').value = '';
+  el('draftNote').value = '';
+  el('previewBox').style.display = 'none';
+  el('editor').style.display = 'block';
+  el('editor').scrollIntoView({ behavior: 'smooth' });
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',').pop());
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+el('draftBtn').addEventListener('click', async () => {
+  const file = el('draftImage').files[0];
+  if (!file) { showStatus('draftStatus', 'Choose a photo first.', false); return; }
+  const hasContent = el('f_name').value.trim() || el('f_intro').value.trim()
+    || readFunctions(el('functionsList')).length;
+  if (hasContent && !confirm('This will replace the name, intro, triggers, and functions currently in the editor with the AI draft. Continue?')) {
+    return;
+  }
+  el('draftBtn').disabled = true;
+  // A single, unqueued fetch that can legitimately take a while (a real
+  // vision-model call, ~10-60s+, occasionally a bare retry on top of that
+  // -- see /admin/skills/draft-from-image) -- a static "drafting…" message
+  // with no visible motion reads as stuck the moment it runs past a few
+  // seconds. The spinner plus a ticking elapsed count are both signals a
+  // coach can check against their own sense of how long it's been, the
+  // same reasoning as index.html's polling screen.
+  const statusEl = el('draftStatus');
+  let elapsed = 0;
+  const renderProgress = () => {
+    statusEl.className = 'status progress';
+    statusEl.innerHTML = `<span class="spinner"></span><span>Reading the photo and drafting… (${elapsed}s)</span>`;
+  };
+  renderProgress();
+  const ticker = setInterval(() => { elapsed += 1; renderProgress(); }, 1000);
+  try {
+    const image_base64 = await fileToBase64(file);
+    const res = await api('/admin/skills/draft-from-image', {
+      method: 'POST',
+      body: JSON.stringify({ image_base64, note: el('draftNote').value.trim() }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showStatus('draftStatus', body.detail || 'Could not draft from that photo.', false);
+      return;
+    }
+    el('f_name').value = body.name || '';
+    el('f_intro').value = body.intro || '';
+    el('f_triggers').value = (body.triggers || []).join(', ');
+    el('functionsList').innerHTML = '';
+    (body.functions || []).forEach(fn => makeFunctionRow(el('functionsList'), fn));
+    showStatus('draftStatus', 'Drafted below — review and edit before saving.', true);
+  } catch (e) {
+    showStatus('draftStatus', 'Could not reach the server.', false);
+  } finally {
+    clearInterval(ticker);
+    el('draftBtn').disabled = false;
+  }
+});
+
+el('newBtn').addEventListener('click', () => openEditor(emptySkill()));
+el('cancelBtn').addEventListener('click', () => { el('editor').style.display = 'none'; });
+
+el('saveBtn').addEventListener('click', async () => {
+  const id = el('f_id').value.trim();
+  if (!/^[a-z0-9-]+$/.test(id)) {
+    showStatus('editorStatus', 'Skill id must be lowercase letters, numbers, and hyphens only.', false);
+    return;
+  }
+  const functions = readFunctions(el('functionsList'));
+  if (!functions.length) {
+    showStatus('editorStatus', 'Add at least one function.', false);
+    return;
+  }
+  const payload = {
+    id,
+    name: el('f_name').value.trim() || id,
+    triggers: el('f_triggers').value.split(',').map(t => t.trim()).filter(Boolean),
+    intro: el('f_intro').value.trim(),
+    functions,
+  };
+
+  // The save now includes a real render pass (app/skills/demo.py, one AI
+  // call so Economy mode never needs one per student) -- same "is it dead"
+  // risk as the draft-with-AI call, same fix: a spinner plus a ticking
+  // elapsed count instead of a flat "Saving…" with no visible progress.
+  const editorStatusEl = el('editorStatus');
+  let elapsed = 0;
+  const renderSaveProgress = () => {
+    editorStatusEl.className = 'status progress';
+    editorStatusEl.innerHTML = `<span class="spinner"></span><span>Saving and rendering the block preview… (${elapsed}s)</span>`;
+  };
+  renderSaveProgress();
+  const ticker = setInterval(() => { elapsed += 1; renderSaveProgress(); }, 1000);
+  el('saveBtn').disabled = true;
+
+  let res, body;
+  try {
+    res = await api('/admin/skills', { method: 'POST', body: JSON.stringify(payload) });
+    body = await res.json().catch(() => ({}));
+  } finally {
+    clearInterval(ticker);
+    el('saveBtn').disabled = false;
+  }
+
+  if (!res.ok) {
+    showStatus('editorStatus', body.detail || 'Save failed.', false);
+    return;
+  }
+  showStatus('editorStatus', 'Saved.', true);
+  if (body.preview) {
+    el('previewAi').textContent = body.preview.ai_context;
+    el('previewMsg').textContent = body.preview.student_message;
+    if (body.preview.student_render && body.preview.student_render.length) {
+      el('previewCode').innerHTML = renderBlockTree(body.preview.student_render);
+    } else {
+      el('previewCode').innerHTML = `<pre class="blk-fallback">${escapeHtml(body.preview.student_code)}</pre>`;
+    }
+    el('previewBox').style.display = 'block';
+  }
+  await refreshList();
+});
+
+(async function init() {
+  if (!token) { showLogin(); return; }
+  try {
+    const res = await api('/admin/skills');
+    if (!res.ok) { showLogin(); return; }
+    el('loginCard').style.display = 'none';
+    el('app').style.display = 'block';
+    await refreshList();
+  } catch (e) {
+    showLogin();
+  }
+})();
+</script>
+</body>
+</html>

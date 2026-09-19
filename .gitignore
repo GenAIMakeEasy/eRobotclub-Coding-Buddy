@@ -1,0 +1,12 @@
+.env
+data/sessions/
+data/logs/
+data/launchd/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.pytest_cache/
+.agents/
+.claude/
+benchmark/

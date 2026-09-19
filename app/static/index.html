@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>R Block Coding Buddy</title>
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+<!--
+================================================================================
+THE REAL APP — not the design review artifact.
+
+design/design-demos/approved-v2.html tiles five independent phones, each with
+hand-authored fixture data (BUILD_TREE/DEBUG_TREE), a fake iPhone bezel
+(IosFrame) for side-by-side comparison, and a hardcoded queue position. This
+file is what a student's own browser actually loads: one real full-viewport
+page, one real navigation flow (entry -> ask -> queue -> answer), and every
+block on screen came from a live POST /ask + GET /answer/{id} round trip
+through the real pipeline (app/llm/pipeline.py) — not a fixture.
+
+The block-rendering primitives (Pill, Oval, Hex, Stmt, CBlock, BlockPanel,
+ProgressHeader) are lifted verbatim from the approved design; only the
+outermost app shell and data plumbing are new. `render_tree`
+(app/schema/render.py) already produces nodes in exactly the shape those
+components expect, so this file stays a dumb renderer of server output.
+================================================================================
+-->
+
+<style>
+  :root { --paper: oklch(0.968 0.006 78); }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 700px at 18% -8%, oklch(0.995 0.006 82) 0%, transparent 62%),
+      radial-gradient(900px 600px at 92% 4%, oklch(0.975 0.016 58) 0%, transparent 58%),
+      var(--paper);
+    color: oklch(0.245 0.015 60);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  #root { min-height: 100vh; min-height: 100dvh; }
+</style>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useRef, useLayoutEffect, useEffect, useCallback } = React;
+
+/* ============================================================================
+   Tokens — identical to design/design-demos/approved-v2.html
+   ========================================================================== */
+const C = {
+  card: 'oklch(0.995 0.002 90)',
+  appBg: 'oklch(0.985 0.004 84)',
+  ink: 'oklch(0.245 0.015 60)',
+  inkMid: 'oklch(0.455 0.014 60)',
+  inkSoft: 'oklch(0.615 0.012 62)',
+  inkFaint: 'oklch(0.740 0.010 65)',
+  hair: 'oklch(0.905 0.007 70)',
+  hairSoft: 'oklch(0.945 0.005 74)',
+  accent: 'oklch(0.640 0.155 52)',
+  accentDeep: 'oklch(0.470 0.135 48)',
+  accentWash: 'oklch(0.960 0.028 62)',
+  accentEdge: 'oklch(0.885 0.060 58)',
+  danger: 'oklch(0.530 0.210 25)',
+  dangerWash: 'oklch(0.963 0.026 25)',
+  dangerEdge: 'oklch(0.855 0.090 25)',
+  done: 'oklch(0.520 0.075 155)',
+  doneWash: 'oklch(0.968 0.018 155)',
+};
+const MONO = 'ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, monospace';
+
+function cat(h) {
+  return {
+    h,
+    fill: `oklch(0.800 0.105 ${h})`,
+    dim:  `oklch(0.918 0.030 ${h})`,
+    edge: `oklch(0.700 0.115 ${h})`,
+    ink:  `oklch(0.290 0.075 ${h})`,
+    inkDim: `oklch(0.560 0.030 ${h})`,
+    slot: `oklch(0.955 0.020 ${h})`,
+    slotEdge: `oklch(0.640 0.070 ${h})`,
+  };
+}
+const CAT = {
+  Control:     cat(275),
+  Variable:    cat(68),
+  Sensing:     cat(310),
+  Motion:      cat(196),
+  Calculation: cat(150),
+  Function:    cat(340),
+  Screen:      cat(245),
+  Sound:       cat(105),
+  'Low-Level Bus Matrix Registers': cat(20),
+};
+function catOf(name) { return CAT[name] || CAT.Control; }
+
+/* ============================================================================
+   i18n
+   ========================================================================== */
+const T = {
+  en: {
+    code: 'EN', name: 'English',
+    greet: 'R Block Buddy', sub: 'Robotics club · ROBOTIS R+ Ollo',
+    pick: 'What do you need?',
+    build: 'Build', buildSub: 'Write me a program',
+    debug: 'Debug', debugSub: "Mine doesn't work",
+    lang: 'Language', langNote: 'Saved on this device',
+    askQ: 'What should the robot do?', askPlaceholder: 'Describe what your robot should do…',
+    addPhoto: 'Add a photo', photoHint: 'Course layout or your robot',
+    attached: 'Photo attached', remove: 'Remove', go: 'Ask',
+    back: 'Back',
+    queueTitle: 'Working on it', inQueue: 'You are in the queue',
+    position: 'Position', ahead: 'ahead of you', est: 'Estimated wait',
+    running: 'Your turn — thinking…',
+    keep: 'This can take a little while, especially if the class is busy.',
+    summary: 'Summary', program: 'Program', placed: 'placed',
+    phaseHint: 'Place these blocks in R+, then tap "Ready for the next phase" below.',
+    note: 'Note', wrong: 'What was wrong',
+    engNote: 'Block names stay in English — that is what R+ shows',
+    askAnother: 'Ask another question', error: 'Something went wrong',
+    errorHint: 'The assistant could not answer that. Try again in a moment.',
+    errorBusy: "The AI service has hit its usage limit for now. Ask a teacher to switch the model in Admin, or try again later.",
+    errorOffline: "Could not reach the assistant — check the wifi connection, or the server may be down.",
+    errorTimeout: "This is taking much longer than it should — the assistant may have restarted. Please ask again.",
+    retry: 'Try again',
+    replyPlaceholder: 'Type your answer…', send: 'Send',
+    phaseLabel: 'Phase {n} of {total}', readyNext: "I'm ready for the next phase",
+    readyNextMessage: "I'm ready for the next phase.",
+    orTypeInstead: 'Or tell me something else instead',
+    elapsed: 'Time elapsed', stillWorking: "Still working — some questions take longer than others.",
+    followUpLabel: 'Want to ask something else?',
+    followUpAfterError: "That didn't come out right — tell me what you actually meant.",
+    economyLabel: 'Economy mode', economyHint: 'Get sample code from our library first — instant, no waiting. Ask a follow-up if you want the AI to adjust it.',
+    sampleCode: 'Sample code', economyBadge: 'Sample',
+    ttsLabel: 'Voice replies', ttsHint: 'Read the assistant\'s questions aloud automatically — not the code itself, just when it asks you something.',
+    warmingUp: 'Warming up the assistant…', modelReady: 'Ready',
+    discardThreadConfirm: "Start a new question? What you've placed so far in this program will stay in R+, but this conversation will be cleared.",
+  },
+  ms: {
+    code: 'BM', name: 'Bahasa Malaysia',
+    greet: 'R Block Buddy', sub: 'Kelab robotik · ROBOTIS R+ Ollo',
+    pick: 'Apa yang anda perlukan?',
+    build: 'Bina', buildSub: 'Tuliskan atur cara untuk saya',
+    debug: 'Baiki', debugSub: 'Punya saya tak jalan',
+    lang: 'Bahasa', langNote: 'Disimpan pada peranti ini',
+    askQ: 'Apa yang sepatutnya robot buat?', askPlaceholder: 'Terangkan apa robot anda patut buat…',
+    addPhoto: 'Tambah gambar', photoHint: 'Susun atur trek atau robot anda',
+    attached: 'Gambar dilampirkan', remove: 'Buang', go: 'Tanya',
+    back: 'Kembali',
+    queueTitle: 'Sedang diproses', inQueue: 'Anda berada dalam barisan',
+    position: 'Kedudukan', ahead: 'di hadapan anda', est: 'Anggaran menunggu',
+    running: 'Giliran anda — sedang berfikir…',
+    keep: 'Ini mungkin mengambil sedikit masa, terutamanya jika kelas sibuk.',
+    summary: 'Ringkasan', program: 'Atur cara', placed: 'dipasang',
+    phaseHint: 'Pasang blok ini dalam R+, kemudian ketik "Sedia untuk fasa seterusnya" di bawah.',
+    note: 'Nota', wrong: 'Apa yang salah',
+    engNote: 'Nama blok kekal dalam Bahasa Inggeris — itulah yang R+ papar',
+    askAnother: 'Tanya soalan lain', error: 'Sesuatu tidak kena',
+    errorHint: 'Pembantu tidak dapat menjawab. Cuba lagi sebentar.',
+    errorBusy: 'Perkhidmatan AI telah mencapai had penggunaannya buat masa ini. Minta guru tukar model dalam Admin, atau cuba lagi kemudian.',
+    errorOffline: 'Tidak dapat menghubungi pembantu — semak sambungan wifi, atau pelayan mungkin sedang tidak berfungsi.',
+    errorTimeout: 'Ini mengambil masa lebih lama daripada sepatutnya — pembantu mungkin telah dimulakan semula. Sila tanya sekali lagi.',
+    retry: 'Cuba lagi',
+    replyPlaceholder: 'Taip jawapan anda…', send: 'Hantar',
+    phaseLabel: 'Fasa {n} daripada {total}', readyNext: 'Saya sedia untuk fasa seterusnya',
+    readyNextMessage: 'Saya sedia untuk fasa seterusnya.',
+    orTypeInstead: 'Atau beritahu saya sesuatu yang lain',
+    elapsed: 'Masa berlalu', stillWorking: 'Masih diproses — sesetengah soalan mengambil masa lebih lama.',
+    followUpLabel: 'Nak tanya sesuatu yang lain?',
+    followUpAfterError: 'Itu tidak betul — beritahu saya apa yang anda maksudkan sebenarnya.',
+    economyLabel: 'Mod ekonomi', economyHint: 'Dapatkan kod contoh daripada pustaka kami dahulu — segera, tiada menunggu. Tanya susulan jika mahu AI ubah suainya.',
+    sampleCode: 'Kod contoh', economyBadge: 'Contoh',
+    ttsLabel: 'Balasan suara', ttsHint: 'Bacakan soalan pembantu secara automatik dengan suara — bukan kod itu sendiri, hanya apabila ia bertanya sesuatu kepada anda.',
+    warmingUp: 'Sedang memanaskan pembantu…', modelReady: 'Sedia',
+    discardThreadConfirm: 'Mula soalan baharu? Apa yang telah anda pasang setakat ini akan kekal dalam R+, tetapi perbualan ini akan dikosongkan.',
+  },
+  zh: {
+    code: '中文', name: '中文',
+    greet: 'R Block 助手', sub: '机器人社团 · ROBOTIS R+ Ollo',
+    pick: '你需要什么帮助？',
+    build: '编写', buildSub: '帮我写一段程序',
+    debug: '排错', debugSub: '我的程序跑不通',
+    lang: '界面语言', langNote: '已保存在本机',
+    askQ: '机器人应该做什么？', askPlaceholder: '描述一下你的机器人应该做什么…',
+    addPhoto: '添加照片', photoHint: '赛道布局或你的机器人',
+    attached: '已附加照片', remove: '移除', go: '提问',
+    back: '返回',
+    queueTitle: '正在处理', inQueue: '你正在排队中',
+    position: '当前位次', ahead: '人在你前面', est: '预计等待',
+    running: '轮到你了 —— 正在思考…',
+    keep: '这可能需要一点时间，尤其是班上人多的时候。',
+    summary: '摘要', program: '程序', placed: '已放置',
+    phaseHint: '在 R+ 中放好这些积木，然后点击下方的"准备好进入下一阶段"。',
+    note: '备注', wrong: '问题出在哪里',
+    engNote: '积木名称保持英文 —— R+ 里显示的就是英文',
+    askAnother: '问下一个问题', error: '出了点问题',
+    errorHint: '助手无法回答这个问题，请稍后再试。',
+    errorBusy: 'AI 服务目前已达到使用上限。请老师到管理后台切换模型，或稍后再试。',
+    errorOffline: '无法连接到助手 —— 请检查 wifi 连接，服务器也可能已停止运行。',
+    errorTimeout: '这比预期花费的时间长得多 —— 助手可能已重新启动。请重新提问。',
+    retry: '重试',
+    replyPlaceholder: '输入你的回答…', send: '发送',
+    phaseLabel: '第 {n} 阶段（共 {total} 阶段）', readyNext: '我准备好进入下一阶段了',
+    readyNextMessage: '我准备好进入下一阶段了。',
+    orTypeInstead: '或者告诉我别的',
+    elapsed: '已用时间', stillWorking: '仍在处理中 —— 有些问题需要更长时间。',
+    followUpLabel: '还想问点别的吗？',
+    followUpAfterError: '这个回答不太对 —— 告诉我你实际想要什么。',
+    economyLabel: '经济模式', economyHint: '先从我们的资料库获取示例代码 —— 即时显示，无需等待。如需 AI 调整，之后可以继续提问。',
+    sampleCode: '示例代码', economyBadge: '示例',
+    ttsLabel: '语音回答', ttsHint: '自动朗读助手提出的问题 —— 不包括代码本身，只在它向你提问时朗读。',
+    warmingUp: '正在预热助手…', modelReady: '已就绪',
+    discardThreadConfirm: '开始新的问题？目前已放置的积木仍会留在 R+ 中，但这段对话记录将被清空。',
+  },
+};
+
+/* ============================================================================
+   Block primitives — identical to design/design-demos/approved-v2.html,
+   plus a `node.bad` treatment (a real validation failure keeps its true
+   shape — Stmt/CBlock/Hex — rather than being replaced, so a student can
+   still see what the block WAS, just marked as structurally wrong).
+   ========================================================================== */
+function Pill({ v, c, dim }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      background: dim ? 'oklch(0.975 0.003 80)' : c.slot,
+      border: `1px solid ${dim ? C.hairSoft : c.slotEdge}`,
+      color: dim ? C.inkSoft : c.ink,
+      padding: '1px 5px 1px 6px', borderRadius: 5,
+      fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, whiteSpace: 'nowrap',
+    }}>
+      {v}
+      <svg width="7" height="4.5" viewBox="0 0 8 5" style={{ opacity: 0.75, flexShrink: 0 }}>
+        <path d="M0.7 0.8 L4 4 L7.3 0.8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+function Oval({ v, c, dim }) {
+  return (
+    <span style={{
+      display: 'inline-block',
+      background: dim ? 'transparent' : '#fff',
+      border: `1.5px solid ${dim ? C.hairSoft : c.slotEdge}`,
+      color: dim ? C.inkSoft : c.ink,
+      padding: '0px 7px 0px 7px', borderRadius: 999,
+      fontSize: 12.5, fontWeight: 700, lineHeight: 1.35, whiteSpace: 'nowrap',
+      fontVariantNumeric: 'tabular-nums',
+    }}>{v}</span>
+  );
+}
+function Gear({ c }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" style={{ flexShrink: 0 }}
+         fill="none" stroke={c.ink} strokeWidth="2">
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 2.6v3M12 18.4v3M2.6 12h3M18.4 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+function Parts({ p, c, dim, conds }) {
+  return p.map((seg, k) => {
+    const [kind, val] = seg;
+    if (kind === 'g') return <Gear key={k} c={c} />;
+    if (kind === 'cond') return <React.Fragment key={k}>{(conds || [])[val]}</React.Fragment>;
+    if (kind === 'd') return <Pill key={k} v={val} c={c} dim={dim} />;
+    if (kind === 'v') return <Oval key={k} v={val} c={c} dim={dim} />;
+    return <span key={k} style={{
+      color: dim ? C.inkSoft : c.ink, fontSize: 12.5, fontWeight: 600, lineHeight: 1.3, letterSpacing: -0.1,
+    }}>{val}</span>;
+  });
+}
+function CatTag({ name, c, dim }) {
+  return (
+    <span style={{
+      fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
+      color: dim ? C.inkFaint : c.ink, opacity: dim ? 1 : 0.55,
+      marginLeft: 'auto', paddingLeft: 6, flexShrink: 0, lineHeight: 1.4,
+    }}>{name}</span>
+  );
+}
+function BadNote({ messages }) {
+  if (!messages || !messages.length) return null;
+  return (
+    <div style={{
+      marginTop: 3, fontSize: 12, color: C.danger, lineHeight: 1.4,
+      background: C.dangerWash, border: `1px solid ${C.dangerEdge}`, borderRadius: 7,
+      padding: '4px 8px',
+    }}>{messages.join(' · ')}</div>
+  );
+}
+// Total time from asking to the answer landing (queue wait + generation +
+// network) -- language-agnostic ("12.3s", not a translated sentence) so it
+// doesn't need an entry in every T[lang] block for something this small.
+// Under a minute shows one decimal (short waits are the common case and a
+// whole second is coarse); a minute or more drops the decimal (nobody
+// needs "1m 04.3s" precision once it's already that long).
+function formatLatency(seconds) {
+  if (seconds == null) return null;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}m ${s}s`;
+}
+
+/* The model writes plain-text answers with light markdown (**bold**, "* "
+   bullet lines) since that's the easiest structure for it to produce
+   reliably -- but rendered as a raw string, students saw literal asterisks
+   and a wall of run-on text instead of an actual list. This is a tiny,
+   deliberately non-general parser: bold spans and bullet lines are the only
+   two things the prompts ever ask the model to use. */
+function RichText({ text, style }) {
+  if (!text) return null;
+  const renderInline = (line, key) => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+    return (
+      <React.Fragment key={key}>
+        {parts.map((part, i) => part.startsWith('**') && part.endsWith('**')
+          ? <strong key={i}>{part.slice(2, -2)}</strong>
+          : part
+        )}
+      </React.Fragment>
+    );
+  };
+
+  // The model writes bullets inline, not on their own line -- "Here is the
+  // plan: * **A**: ... * **B**: ..." with no real newline before each "*".
+  // Promote every inline "single star + space" (not "**", which is bold) to
+  // its own line first, so the line-based bullet grouping below still works.
+  const normalized = text.replace(/\s\*(?!\*)\s+/g, '\n* ');
+  const lines = normalized.split('\n');
+  const blocks = [];
+  let list = null; // { type: 'ul' | 'ol', items: [...] }
+  lines.forEach((line, i) => {
+    const bulletMatch = /^\s*[*-]\s+(.*)$/.exec(line);
+    // "1. " / "1) " -- feedback asked for MORE visible structure (numbered
+    // steps, not one dense paragraph); the model already writes these
+    // sometimes, but they used to render as plain lines with no list
+    // styling at all, no different from an un-numbered sentence.
+    const numberedMatch = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+    const match = bulletMatch || numberedMatch;
+    const type = bulletMatch ? 'ul' : 'ol';
+    if (match) {
+      if (!list || list.type !== type) { list = { type, items: [] }; blocks.push(list); }
+      list.items.push(match[1]);
+    } else {
+      list = null;
+      if (line.trim() || blocks.length) blocks.push(line);
+    }
+  });
+
+  return (
+    <div style={style}>
+      {blocks.map((b, i) => (b && b.items) ? (
+        React.createElement(b.type, { key: i, style: { margin: '8px 0', paddingLeft: 20 } },
+          b.items.map((item, j) => <li key={j} style={{ marginBottom: 3 }}>{renderInline(item, j)}</li>))
+      ) : b.trim() ? (
+        <div key={i} style={{ marginBottom: 6 }}>{renderInline(b, i)}</div>
+      ) : null)}
+    </div>
+  );
+}
+/* Errors whose path is [] are faults in the TURN itself (e.g. kind="phase"
+   missing its phase numbers) rather than any one block, so render_tree() has
+   nowhere to attach them to a node -- BadNote (used on individual blocks)
+   never sees them. This is the only place they're surfaced. */
+function TurnErrorNote({ errors }) {
+  const turnLevel = (errors || []).filter(e => !e.path || e.path.length === 0);
+  if (!turnLevel.length) return null;
+  return (
+    <div style={{
+      margin: '0 16px 10px 16px', fontSize: 13, color: C.danger, lineHeight: 1.4,
+      background: C.dangerWash, border: `1px solid ${C.dangerEdge}`, borderRadius: 10,
+      padding: '8px 12px',
+    }}>{turnLevel.map(e => e.message).join(' · ')}</div>
+  );
+}
+/* Hex/Stmt/CBlock are pure renderers of R Block's visual grammar -- no
+   done/next/tap state at all (BlockPanel below just displays the tree;
+   progress is tracked at the phase level instead, via
+   phase_number/phase_total, advanced by "Ready for the next phase"). */
+function Hex({ node, bg }) {
+  const c = catOf(node.cat);
+  const hex = 'polygon(9px 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 9px 100%, 0 50%)';
+  const badRing = node.bad ? `0 0 0 2px ${C.danger}` : 'none';
+  return (
+    <span style={{ display: 'inline-block', maxWidth: '100%' }}>
+      <span style={{
+        display: 'inline-block', maxWidth: '100%', minWidth: 0, clipPath: hex,
+        fontSize: 0, lineHeight: 0, verticalAlign: 'middle', boxShadow: badRing,
+      }}>
+        <span style={{
+          display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4,
+          background: node.bad ? C.dangerWash : c.fill, clipPath: hex,
+          padding: '4px 13px 5px 13px', maxWidth: '100%',
+        }}>
+          <Parts p={node.p} c={c} conds={(node.conds || []).map((cn, i) => <Hex key={i} node={cn} />)} />
+          <CatTag name={node.cat} c={c} />
+        </span>
+      </span>
+      <BadNote messages={node.badMessages} />
+    </span>
+  );
+}
+function Stmt({ node }) {
+  const c = catOf(node.cat);
+  return (
+    <div style={{ position: 'relative' }}>
+      <div style={{
+        background: node.bad ? C.dangerWash : c.fill,
+        border: node.bad ? `2px solid ${C.danger}` : 'none',
+        borderRadius: 8, padding: node.bad ? '4px 8px 5px 8px' : '5px 9px 6px 9px',
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4,
+        userSelect: 'none', position: 'relative', zIndex: 2,
+      }}>
+        <Parts p={node.p} c={c} />
+        <CatTag name={node.cat} c={c} />
+      </div>
+      {!node.bad && (
+        <div style={{
+          position: 'absolute', left: 14, bottom: -3, width: 13, height: 5,
+          background: c.fill, borderRadius: '0 0 4px 4px', zIndex: 1,
+        }} />
+      )}
+      <BadNote messages={node.badMessages} />
+    </div>
+  );
+}
+/* An "if" whose ONLY else content is another "if" is a linear if/elif/
+   .../else chain, not real nesting (see render.py's containment-note
+   docstring) -- but drawing it as a literal nested card, indented further
+   right per branch, reads as a staircase and was flagged as looking like
+   "a nested loop inside the else case" when it's actually flat, mutually-
+   exclusive branches. This walks that link chain up front so every
+   branch's condition renders at the SAME indent inside one shared card,
+   the way a flat if/elif/elif/else chain actually reads. R Block's real
+   containment shape (what's validated and sent to the robot) is
+   completely untouched -- only how the chain is drawn changes. */
+// Every chain segment after the first is still, underneath, a real "if
+// then" ProgramBlock with its own literal "if"/"then" text tokens (that's
+// what's validated and sent to the robot) -- but the ACTUAL R+ app never
+// draws it that way: it fuses each later branch into one "else if
+// [condition]" line, no repeated "then", not even a separate "else" label
+// row (confirmed against a real screenshot of the app's own block canvas,
+// which reads "if ... then" / "else if ..." / "else if ..." / "else", all
+// as one shared block, not restated headers). Strips the leading gear/
+// "if" and the trailing "then" text tokens and prepends "else if" as one
+// fused keyword instead, so the drawing matches what a student actually
+// sees on their own device, not just our own internal data shape.
+function _elifHeaderParts(seg) {
+  const rest = seg.p.filter(part => {
+    if (part[0] === 'g') return false;
+    if (part[0] === 't' && ['if', 'then'].includes(part[1].trim().toLowerCase())) return false;
+    return true;
+  });
+  return [['t', 'else if'], ...rest];
+}
+function CBlock({ node, bg }) {
+  const isIfThen = (n) => !!(n.p && n.p[0] && n.p[0][0] === 'g');
+  const chain = [node];
+  while (true) {
+    const last = chain[chain.length - 1];
+    if (last.elseBody && last.elseBody.length === 1 && last.elseBody[0].c && isIfThen(last.elseBody[0])) {
+      chain.push(last.elseBody[0]);
+    } else break;
+  }
+  const tailElse = chain[chain.length - 1].elseBody; // a real else, or undefined
+  const anyBad = chain.some(seg => seg.bad);
+  const c0 = catOf(chain[0].cat);
+  // A thin divider is enough of a seam once the header itself reads
+  // "else if"/"else" -- the earlier pill-badge design was compensating for
+  // a header that still said a bare, disconnected "if ... then" again.
+  const divider = (
+    <div style={{ margin: '2px 9px 3px 9px', borderTop: `1.5px dashed ${C.hairSoft}` }} />
+  );
+  return (
+    <div style={{ position: 'relative', marginBottom: 2 }}>
+      <div style={{
+        background: anyBad ? C.dangerWash : c0.fill,
+        border: anyBad ? `2px solid ${C.danger}` : 'none',
+        borderRadius: 9, paddingBottom: 9, position: 'relative', zIndex: 2,
+      }}>
+        {chain.map((seg, i) => {
+          const c = catOf(seg.cat);
+          const condEls = (seg.conds || []).map((cn, k) => <Hex key={k} node={cn} />);
+          return (
+            <React.Fragment key={seg.id}>
+              {i > 0 && divider}
+              <div style={{
+                padding: '5px 9px 6px 9px', borderRadius: 9,
+                display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, userSelect: 'none',
+              }}>
+                <Parts p={i === 0 ? seg.p : _elifHeaderParts(seg)} c={c} conds={condEls} />
+                <CatTag name={seg.cat} c={c} />
+              </div>
+              <BadNote messages={seg.badMessages} />
+              <div style={{ marginLeft: 11, background: bg, padding: '2px 0 2px 4px' }}>
+                <Nodes list={seg.body || []} bg={bg} />
+              </div>
+            </React.Fragment>
+          );
+        })}
+        {tailElse && (
+          <React.Fragment>
+            {divider}
+            <div style={{ padding: '5px 9px 5px 9px', display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: c0.ink, letterSpacing: -0.1 }}>else</span>
+            </div>
+            <div style={{ marginLeft: 11, background: bg, padding: '2px 0 2px 4px' }}>
+              <Nodes list={tailElse} bg={bg} />
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+      {!anyBad && (
+        <div style={{
+          position: 'absolute', left: 16, bottom: -3, width: 15, height: 5,
+          background: c0.fill, borderRadius: '0 0 4px 4px', zIndex: 1,
+        }} />
+      )}
+    </div>
+  );
+}
+function Nodes({ list, bg }) {
+  return list.map(n => (
+    <div key={n.id} style={{ marginBottom: 2 }}>
+      {n.c ? <CBlock node={n} bg={bg} /> : <Stmt node={n} />}
+    </div>
+  ));
+}
+
+/* A plain, non-interactive display of every top-level section (e.g. a
+   whole Forever{...} structure, or a single statement) — deliberately no
+   tap-to-mark-done state anymore. Progress is tracked at the phase level
+   instead (ScreenThread's own header shows "Phase N of Total", advanced
+   by the "Ready for next phase" button), not per block: tapping
+   individual blocks turned out to be an interaction nobody wanted to
+   actually use, on top of already having been through several rounds of
+   simplification this session (dim-on-done, the vertical progress rail,
+   line-level tracking were each removed in turn before this). */
+function BlockPanel({ tree, bg }) {
+  return (
+    <div style={{ padding: '2px 14px 2px 14px' }}>
+      {tree.map(section => (
+        <div key={section.id} style={{ marginBottom: 10 }}>
+          {section.c ? <CBlock node={section} bg={bg} /> : <Stmt node={section} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProgressHeader({ label, doneCount, total, hint }) {
+  const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  return (
+    <div style={{
+      position: 'sticky', top: 0, zIndex: 20,
+      background: 'oklch(0.995 0.002 90 / 0.95)', backdropFilter: 'blur(12px)',
+      borderBottom: `1px solid ${C.hair}`, padding: '8px 16px 8px 16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkMid }}>{label}</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 26, fontWeight: 250, letterSpacing: -1, color: C.accentDeep, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{doneCount}</span>
+        <span style={{ fontSize: 14, fontWeight: 400, color: C.inkSoft }}>/ {total}</span>
+      </div>
+      <div style={{ height: 4, background: C.hairSoft, borderRadius: 999, marginTop: 6, overflow: 'hidden' }}>
+        <div style={{ width: pct + '%', height: '100%', background: C.accent, borderRadius: 999, transition: 'width .2s ease' }} />
+      </div>
+      {hint && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 5, lineHeight: 1.3 }}>{hint}</div>}
+    </div>
+  );
+}
+function LangPicker({ lang, setLang }) {
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {['en', 'ms', 'zh'].map(k => (
+        <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+          padding: '4px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
+          border: `1px solid ${k === lang ? C.accent : C.hair}`,
+          background: k === lang ? C.accentWash : 'transparent',
+          color: k === lang ? C.accentDeep : C.inkSoft,
+          fontSize: 12, fontWeight: k === lang ? 700 : 500,
+        }}>{T[k].code}</button>
+      ))}
+    </div>
+  );
+}
+function EngNote({ text }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{
+        fontFamily: MONO, fontSize: 12, fontWeight: 700, color: C.inkMid,
+        border: `1px solid ${C.hair}`, borderRadius: 4, padding: '0px 5px', flexShrink: 0,
+      }}>EN</div>
+      <div style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.4 }}>{text}</div>
+    </div>
+  );
+}
+function PhotoThumb({ src, size = 58 }) {
+  if (src) {
+    return <img src={src} style={{ width: size, height: size, borderRadius: 10, objectFit: 'cover', border: `1px solid ${C.hair}`, flexShrink: 0 }} />;
+  }
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 10, flexShrink: 0,
+      background: 'repeating-linear-gradient(45deg, oklch(0.905 0.010 78) 0 6px, oklch(0.945 0.008 78) 6px 12px)',
+      border: `1px solid ${C.hair}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="oklch(0.560 0.014 62)" strokeWidth="1.6">
+        <rect x="3" y="5" width="18" height="14" rx="2.5" />
+        <circle cx="12" cy="12" r="3.2" />
+        <path d="M8 5l1.4-2h5.2L16 5" />
+      </svg>
+    </div>
+  );
+}
+
+/* ============================================================================
+   Device identity + persisted preferences (Q4/Q8 from the design session:
+   per-device session, language/mode remembered).
+   ========================================================================== */
+function getDeviceId() {
+  const KEY = 'rblock_device_id';
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = 'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+function usePersisted(key, initial) {
+  const [value, setValue] = useState(() => localStorage.getItem(key) || initial);
+  const set = useCallback((v) => { localStorage.setItem(key, v); setValue(v); }, [key]);
+  return [value, set];
+}
+/* Voice for the assistant's own non-code turns (POST /tts, app/api/main.py
+   -- ElevenLabs TTS, app/tts/elevenlabs_client.py). A single module-level
+   `Audio` element, not one per call site: only ever one clarifying
+   question is on screen at a time, so a new one starting should always cut
+   off whatever's still playing from the previous turn, not overlap it.
+   Every failure mode here (no key configured -> 503, network hiccup,
+   the browser's autoplay policy blocking a non-gesture-triggered play())
+   fails SILENTLY -- the question's text is already on screen regardless,
+   so losing the audio is a degradation, never a broken turn. */
+let _ttsAudio = null;
+function speak(text) {
+  if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; }
+  fetch('/tts', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+    .then(res => (res.ok ? res.blob() : null))
+    .then(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      _ttsAudio = audio;
+      audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+      audio.play().catch(() => {});
+    })
+    .catch(() => {});
+}
+/* Polls GET /health so the entry screen can tell the very first student of
+   the day "warming up" vs "ready" (app/api/main.py's `warm` field, set
+   True once startup's real Ollama warmup call succeeds, or as a fallback
+   once any real request completes). Stops polling once ready -- the model
+   doesn't go cold again mid-session (keep_alive: -1). */
+function useModelWarm() {
+  const [warm, setWarm] = useState(null); // null = not checked yet
+  useEffect(() => {
+    let cancelled = false;
+    let intervalId = null;
+    const check = async () => {
+      try {
+        const res = await fetch('/health');
+        const body = await res.json();
+        if (cancelled) return;
+        setWarm(body.warm);
+        if (body.warm && intervalId) { clearInterval(intervalId); intervalId = null; }
+      } catch (e) {
+        if (!cancelled) setWarm(false);
+      }
+    };
+    check();
+    intervalId = setInterval(check, 2500);
+    return () => { cancelled = true; if (intervalId) clearInterval(intervalId); };
+  }, []);
+  return warm;
+}
+
+/* ============================================================================
+   Screens
+   ========================================================================== */
+function ScreenEntry({ lang, setLang, mode, setMode, economy, setEconomy, tts, setTts, onGo }) {
+  const t = T[lang];
+  const warm = useModelWarm();
+  const Fork = ({ id, title, sub, active, glyph }) => (
+    <button data-mode={id} onClick={() => setMode(id)} style={{
+      width: '100%', flex: 1, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+      padding: '20px 18px', borderRadius: 22, marginBottom: 14,
+      border: `2px solid ${active ? C.accent : C.hair}`,
+      background: active ? C.accentWash : C.card,
+      boxShadow: active ? '0 10px 30px oklch(0.640 0.155 52 / 0.20)' : '0 1px 2px oklch(0.2 0 0 / 0.04)',
+      display: 'flex', alignItems: 'center', gap: 16, transition: 'all .16s',
+    }}>
+      <div style={{
+        width: 58, height: 58, borderRadius: 17, flexShrink: 0,
+        background: active ? C.accent : 'oklch(0.955 0.006 78)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>{glyph(active)}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 27, fontWeight: 600, letterSpacing: -0.5, color: active ? C.accentDeep : C.ink, lineHeight: 1.1 }}>{title}</div>
+        <div style={{ fontSize: 14.5, color: active ? 'oklch(0.480 0.075 50)' : C.inkSoft, marginTop: 4 }}>{sub}</div>
+      </div>
+    </button>
+  );
+  const buildGlyph = (a) => (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={a ? '#fff' : C.inkMid} strokeWidth="2" strokeLinecap="round">
+      <rect x="3.5" y="4" width="17" height="5" rx="1.6" /><rect x="6.5" y="10" width="14" height="5" rx="1.6" /><rect x="6.5" y="16" width="10" height="4.5" rx="1.6" />
+    </svg>
+  );
+  const debugGlyph = (a) => (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={a ? '#fff' : C.inkMid} strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="8.4" /><path d="M12 7.4v5.2" /><path d="M12 16.3h.01" />
+    </svg>
+  );
+  return (
+    <div style={{ background: C.appBg, minHeight: '100vh', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '18px 18px 0 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: C.accentDeep }}>{t.greet}</div>
+          {warm !== null && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 650,
+              color: warm ? C.done : C.inkSoft, background: warm ? C.doneWash : C.appBg,
+              border: `1px solid ${warm ? 'oklch(0.870 0.045 155)' : C.hair}`, borderRadius: 999,
+              padding: '2px 8px 2px 6px',
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                background: warm ? C.done : C.inkFaint,
+              }} />
+              {warm ? t.modelReady : t.warmingUp}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 13, color: C.inkSoft, marginTop: 3 }}>{t.sub}</div>
+      </div>
+      <div style={{ padding: '18px 18px 0 18px' }}>
+        <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: -0.7, color: C.ink, lineHeight: 1.2 }}>{t.pick}</div>
+      </div>
+      <div style={{ padding: '16px 18px 0 18px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Fork id="build" title={t.build} sub={t.buildSub} active={mode === 'build'} glyph={buildGlyph} />
+        <Fork id="debug" title={t.debug} sub={t.debugSub} active={mode === 'debug'} glyph={debugGlyph} />
+      </div>
+      {mode === 'build' && (
+        <div style={{ padding: '0 18px' }}>
+          <button
+            onClick={() => setEconomy(!economy)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left',
+              padding: '13px 14px', borderRadius: 15, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1.5px solid ${economy ? C.accent : C.hair}`,
+              background: economy ? C.accentWash : C.card,
+            }}>
+            <span style={{
+              width: 40, height: 24, borderRadius: 999, flexShrink: 0, position: 'relative',
+              background: economy ? C.accent : C.hairSoft, transition: 'background .15s',
+            }}>
+              <span style={{
+                position: 'absolute', top: 2, left: economy ? 18 : 2, width: 20, height: 20, borderRadius: '50%',
+                background: '#fff', boxShadow: '0 1px 3px oklch(0.2 0 0 / 0.25)', transition: 'left .15s',
+              }} />
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 650, color: economy ? C.accentDeep : C.ink }}>{t.economyLabel}</div>
+              <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 2, lineHeight: 1.4 }}>{t.economyHint}</div>
+            </div>
+          </button>
+        </div>
+      )}
+      {mode === 'build' && (
+        <div style={{ padding: '8px 18px 0 18px' }}>
+          <button
+            onClick={() => setTts(!tts)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left',
+              padding: '13px 14px', borderRadius: 15, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1.5px solid ${tts ? C.accent : C.hair}`,
+              background: tts ? C.accentWash : C.card,
+            }}>
+            <span style={{
+              width: 40, height: 24, borderRadius: 999, flexShrink: 0, position: 'relative',
+              background: tts ? C.accent : C.hairSoft, transition: 'background .15s',
+            }}>
+              <span style={{
+                position: 'absolute', top: 2, left: tts ? 18 : 2, width: 20, height: 20, borderRadius: '50%',
+                background: '#fff', boxShadow: '0 1px 3px oklch(0.2 0 0 / 0.25)', transition: 'left .15s',
+              }} />
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 650, color: tts ? C.accentDeep : C.ink }}>{t.ttsLabel}</div>
+              <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 2, lineHeight: 1.4 }}>{t.ttsHint}</div>
+            </div>
+          </button>
+        </div>
+      )}
+      <div style={{ padding: '4px 18px 20px 18px' }}>
+        <div style={{ height: 1, background: C.hair, marginBottom: 14 }} />
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase', color: C.inkSoft, marginBottom: 8 }}>{t.lang}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['en', 'ms', 'zh'].map(k => {
+            const on = k === lang;
+            return (
+              <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+                flex: 1, padding: '11px 4px', borderRadius: 12, cursor: 'pointer',
+                border: `1.5px solid ${on ? C.accent : C.hair}`,
+                background: on ? C.accentWash : C.card,
+                color: on ? C.accentDeep : C.inkMid,
+                fontWeight: on ? 700 : 500, fontSize: 14, fontFamily: 'inherit', transition: 'all .15s',
+              }}>{T[k].name}</button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 7, textAlign: 'center' }}>{t.langNote}</div>
+        <button onClick={onGo} style={{
+          width: '100%', marginTop: 14, padding: '16px', borderRadius: 15, border: 'none',
+          background: C.accent, color: '#fff', fontSize: 17, fontWeight: 650,
+          fontFamily: 'inherit', cursor: 'pointer', letterSpacing: -0.2,
+          boxShadow: '0 6px 18px oklch(0.640 0.155 52 / 0.30)',
+        }}>{mode === 'build' ? t.build : t.debug} →</button>
+        <a href="/admin.html" style={{
+          display: 'block', textAlign: 'center', marginTop: 14, fontSize: 12,
+          color: C.inkFaint, textDecoration: 'none',
+        }}>Admin</a>
+      </div>
+    </div>
+  );
+}
+
+function ScreenAsk({ lang, setLang, mode, onBack, onSubmit }) {
+  const t = T[lang];
+  const [question, setQuestion] = useState('');
+  const [photo, setPhoto] = useState(null); // { dataUrl, base64, name, size }
+  const fileRef = useRef(null);
+
+  const handleFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const base64 = dataUrl.split(',')[1];
+      setPhoto({ dataUrl, base64, name: file.name, size: file.size });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{ background: C.appBg, minHeight: '100vh', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        padding: '12px 16px', borderBottom: `1px solid ${C.hair}`, background: C.card,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <button onClick={onBack} style={{ border: 'none', background: 'none', fontSize: 20, color: C.inkSoft, cursor: 'pointer', padding: 0, lineHeight: 1 }}>‹</button>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.accentDeep, background: C.accentWash, padding: '3px 9px', borderRadius: 6,
+        }}>{mode === 'build' ? t.build : t.debug}</span>
+        <span style={{ flex: 1 }} />
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <div style={{ padding: '22px 16px 0 16px', flex: 1 }}>
+        <div style={{ fontSize: 24, fontWeight: 300, letterSpacing: -0.6, color: C.ink, lineHeight: 1.25 }}>{t.askQ}</div>
+
+        <div style={{
+          marginTop: 16, background: C.card, border: `1px solid ${C.hair}`,
+          borderRadius: 16, padding: '14px 14px 12px 14px', boxShadow: '0 2px 10px oklch(0.2 0 0 / 0.035)',
+        }}>
+          <textarea
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder={t.askPlaceholder}
+            rows={4}
+            style={{
+              width: '100%', border: 'none', outline: 'none', resize: 'none',
+              fontSize: 15.5, lineHeight: 1.55, color: C.ink, fontFamily: 'inherit',
+              background: 'transparent', minHeight: 92, padding: 0,
+            }}
+          />
+          <div style={{ height: 1, background: C.hairSoft, margin: '10px -14px 10px -14px' }} />
+
+          {photo ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <PhotoThumb src={photo.dataUrl} />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>{t.attached}</div>
+                <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {photo.name} · {(photo.size / 1024).toFixed(0)} KB
+                </div>
+              </div>
+              <button data-photo="off" onClick={() => setPhoto(null)} style={{
+                border: `1px solid ${C.hair}`, background: 'transparent', color: C.inkMid,
+                fontSize: 13, fontWeight: 600, padding: '6px 11px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+              }}>{t.remove}</button>
+            </div>
+          ) : (
+            <button data-photo="on" onClick={() => fileRef.current && fileRef.current.click()} style={{
+              display: 'flex', alignItems: 'center', gap: 11, width: '100%',
+              border: `1.5px dashed ${C.hair}`, background: 'transparent',
+              borderRadius: 12, padding: '11px 12px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+            }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 9, background: 'oklch(0.955 0.006 78)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.inkMid} strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 6v12M6 12h12" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>{t.addPhoto}</div>
+                <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 1 }}>{t.photoHint}</div>
+              </div>
+            </button>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                 onChange={(e) => handleFile(e.target.files[0])} />
+        </div>
+
+        <div style={{ marginTop: 14, background: 'oklch(0.972 0.006 80)', border: `1px solid ${C.hairSoft}`, borderRadius: 12, padding: '10px 12px' }}>
+          <EngNote text={t.engNote} />
+        </div>
+      </div>
+
+      <div style={{ padding: '0 16px 22px 16px' }}>
+        <button
+          disabled={!question.trim()}
+          onClick={() => onSubmit({ question: question.trim(), imageBase64: photo ? photo.base64 : null })}
+          style={{
+            width: '100%', padding: '16px', borderRadius: 15, border: 'none',
+            background: question.trim() ? C.accent : C.hair,
+            color: question.trim() ? '#fff' : C.inkFaint, fontSize: 17, fontWeight: 650,
+            fontFamily: 'inherit', cursor: question.trim() ? 'pointer' : 'default',
+            boxShadow: question.trim() ? '0 6px 18px oklch(0.640 0.155 52 / 0.30)' : 'none',
+          }}>{t.go} →</button>
+      </div>
+    </div>
+  );
+}
+
+/* A real, ticking elapsed-time counter -- not a fabricated progress stage.
+   Earlier fake per-step stages ("Checking every block name"...) were
+   rejected because the pipeline has no real telemetry to back them; a
+   clock counting actual seconds is honest regardless. `startedAt` is a
+   Date.now() timestamp captured the moment THIS request was submitted, so
+   the count survives status transitions (queued -> running) without
+   resetting. */
+function useElapsedSeconds(startedAt) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!startedAt) return;
+    const tick = () => setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+  return elapsed;
+}
+
+function ScreenQueue({ lang, setLang, status, position, wait, startedAt }) {
+  const t = T[lang];
+  const [low, high] = wait || [null, null];
+  const elapsed = useElapsedSeconds(startedAt);
+  const overrunning = high != null && elapsed > high;
+  // Progress bar reads real elapsed-vs-estimate, not a fake step count.
+  const pct = high != null ? Math.min(100, Math.round((elapsed / high) * 100)) : null;
+
+  return (
+    <div style={{ background: C.appBg, minHeight: '100vh', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        padding: '12px 16px', borderBottom: `1px solid ${C.hair}`, background: C.card,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkMid }}>{t.queueTitle}</span>
+        <span style={{ flex: 1 }} />
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <div style={{ padding: '26px 18px 0 18px', flex: 1 }}>
+        <div style={{
+          background: C.card, border: `1px solid ${C.hair}`, borderRadius: 20,
+          padding: '20px 18px', boxShadow: '0 2px 12px oklch(0.2 0 0 / 0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 13, color: C.inkSoft, letterSpacing: 0.2 }}>{t.elapsed}</span>
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 30, fontWeight: 250, letterSpacing: -1, color: overrunning ? C.accentDeep : C.ink, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+              {elapsed}
+            </span>
+            <span style={{ fontSize: 14, color: C.inkSoft }}>s</span>
+          </div>
+
+          {pct != null && (
+            <div style={{ height: 4, background: C.hairSoft, borderRadius: 999, marginTop: 12, overflow: 'hidden' }}>
+              <div style={{ width: pct + '%', height: '100%', background: C.accent, borderRadius: 999, transition: 'width 1s linear' }} />
+            </div>
+          )}
+
+          <div style={{ height: 1, background: C.hairSoft, margin: '16px -18px 16px -18px' }} />
+
+          {status === 'running' ? (
+            <div style={{ fontSize: 17, fontWeight: 600, color: C.ink }}>{t.running}</div>
+          ) : (
+            <React.Fragment>
+              <div style={{ fontSize: 13, color: C.inkSoft, letterSpacing: 0.2 }}>{t.inQueue}</div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginTop: 8 }}>
+                <div>
+                  <div style={{ fontSize: 62, fontWeight: 200, letterSpacing: -3, color: C.accent, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums' }}>{position != null ? position : '–'}</div>
+                  <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 6 }}>{t.position}</div>
+                </div>
+                {position != null && position > 1 && (
+                  <div style={{ flex: 1, paddingBottom: 6, fontSize: 13, color: C.inkSoft }}>{position - 1} {t.ahead}</div>
+                )}
+              </div>
+            </React.Fragment>
+          )}
+
+          {low != null && (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 14 }}>
+              <span style={{ fontSize: 13, color: C.inkSoft }}>{t.est}</span>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 16, color: C.inkMid, fontVariantNumeric: 'tabular-nums' }}>
+                {Math.round(low)}–{Math.round(high)}s
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div style={{
+          marginTop: 18, background: overrunning ? C.accentWash : 'oklch(0.972 0.006 80)',
+          border: `1px solid ${overrunning ? C.accentEdge : C.hairSoft}`, borderRadius: 12,
+          padding: '12px 14px', fontSize: 14, color: overrunning ? C.accentDeep : C.inkMid, lineHeight: 1.5,
+        }}>
+          {overrunning ? t.stillWorking : t.keep}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScreenAnswer({ lang, setLang, mode, answer, renderTree, errors, latencySeconds, onAskAnother, onFollowUp, tts }) {
+  const t = T[lang];
+  const [followUpText, setFollowUpText] = useState('');
+  const hasErrors = (errors || []).length > 0;
+  const sendFollowUp = () => { if (followUpText.trim()) { onFollowUp(followUpText.trim()); setFollowUpText(''); } };
+  const isDebug = mode === 'debug';
+
+  // `answer.voice` -- a separate, SHORT schema field written specifically
+  // to be spoken aloud (see app/schema/answer_contract.py's _VOICE_FIELD),
+  // not `message`/`fault` -- those are the fuller on-screen text and can
+  // now use numbered lines/more detail freely since they're no longer
+  // also doing double duty as speech. Never the blocks themselves, same
+  // as ScreenThread's own reasoning.
+  useEffect(() => {
+    if (!tts) return;
+    if (answer.voice) speak(answer.voice);
+  }, [tts, answer]);
+
+  return (
+    <div style={{ background: C.card, minHeight: '100vh', minHeight: '100dvh' }}>
+      <div style={{ padding: '10px 16px 6px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: isDebug ? C.danger : C.accentDeep,
+          background: isDebug ? C.dangerWash : C.accentWash, padding: '3px 9px', borderRadius: 6,
+        }}>{isDebug ? t.debug : t.build}</span>
+        <span style={{ flex: 1 }} />
+        {latencySeconds != null && (
+          <span style={{ fontSize: 11.5, color: C.inkFaint, fontVariantNumeric: 'tabular-nums' }}>{formatLatency(latencySeconds)}</span>
+        )}
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <TurnErrorNote errors={errors} />
+
+      {isDebug && answer.fault && (
+        <div style={{ padding: '0 16px 8px 16px' }}>
+          <div style={{ background: C.dangerWash, border: `1px solid ${C.dangerEdge}`, borderRadius: 13, padding: '7px 12px 8px 12px' }}>
+            <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', color: C.danger, marginRight: 7 }}>{t.wrong}</span>
+            {/* RichText, not plain text -- the model now writes point-by-point
+                explanations (bullets) by default; plain text rendered a
+                literal "* point one * point two" wall of text instead of an
+                actual list. */}
+            <RichText text={answer.fault} style={{ display: 'inline', fontSize: 14, lineHeight: 1.42, color: 'oklch(0.330 0.075 30)' }} />
+          </div>
+        </div>
+      )}
+      {!isDebug && (
+        <div style={{ padding: '0 16px 7px 16px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase', color: C.inkSoft, marginBottom: 2 }}>{t.summary}</div>
+          <RichText text={answer.message} style={{ fontSize: 14.5, lineHeight: 1.42, color: C.ink }} />
+        </div>
+      )}
+
+      <div style={{ padding: '0 16px 4px 16px', fontSize: 12, fontWeight: 700, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkMid }}>{t.program}</div>
+
+      <BlockPanel tree={renderTree} bg={C.card} />
+
+      <div style={{ padding: '8px 16px 18px 16px' }}>
+        {answer.note && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkFaint, marginTop: 2, flexShrink: 0 }}>{t.note}</div>
+            <div style={{ fontSize: 14, color: C.inkMid, lineHeight: 1.45 }}>{answer.note}</div>
+          </div>
+        )}
+        <div style={{ marginTop: 9, borderTop: `1px solid ${C.hairSoft}`, paddingTop: 8 }}>
+          <EngNote text={t.engNote} />
+        </div>
+
+        {/* A reply box is always available here, not just "start over" --
+            this matters most exactly when the answer came back broken
+            (hasErrors: empty blocks, a confused message), so a student is
+            never stuck with no way forward except the entry screen. */}
+        <div style={{ marginTop: 14, padding: '12px 13px', borderRadius: 13, background: hasErrors ? C.dangerWash : C.appBg, border: `1.5px solid ${hasErrors ? C.dangerEdge : C.hair}` }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: hasErrors ? C.danger : C.inkSoft, marginBottom: 8 }}>
+            {hasErrors ? t.followUpAfterError : t.followUpLabel}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={followUpText}
+              onChange={(e) => setFollowUpText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendFollowUp(); }}
+              placeholder={t.replyPlaceholder}
+              style={{
+                flex: 1, padding: '11px 12px', borderRadius: 11, border: `1.5px solid ${C.hair}`,
+                fontSize: 14, fontFamily: 'inherit', background: C.card, color: C.ink, outline: 'none',
+              }}
+            />
+            <button onClick={sendFollowUp} disabled={!followUpText.trim()} style={{
+              padding: '0 16px', borderRadius: 11, border: 'none',
+              background: followUpText.trim() ? C.accent : C.hair, color: followUpText.trim() ? '#fff' : C.inkFaint,
+              fontSize: 14, fontWeight: 650, fontFamily: 'inherit', cursor: followUpText.trim() ? 'pointer' : 'default',
+            }}>{t.send}</button>
+          </div>
+        </div>
+
+        <button onClick={onAskAnother} style={{
+          width: '100%', marginTop: 10, padding: '14px', borderRadius: 13, border: `1.5px solid ${C.hair}`,
+          background: C.appBg, color: C.ink, fontSize: 15, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+        }}>{t.askAnother}</button>
+      </div>
+    </div>
+  );
+}
+
+/* Renders economy mode's plain pseudocode (app/llm/economy.py's code_text)
+   readably. A raw `<pre whiteSpace: pre-wrap>` looked broken in practice:
+   when a long line wrapped, the continuation fell back to column 0 instead
+   of staying under the line's own indentation, so e.g. a long comment's
+   second half visually detached from the code it was describing. Each
+   source line gets its own block with `paddingLeft` in `ch` units (exact
+   for a monospace font) instead of literal leading-space characters, so a
+   wrapped continuation still starts under that line's indent, not the
+   left edge. Comments, function-name headers, and leading keywords
+   (if/elif/else/call/wait) get light styling — this is pattern-matching
+   pseudocode by convention, not a real parser, so it only needs to
+   recognize the small vocabulary app/skills/render.py's own prompts ask
+   teachers to write in. */
+function CodeBlock({ text }) {
+  const KEYWORD = /^(if|elif|else|call|wait while|wait)\b/;
+  const HEADER = /^[A-Za-z_][\w.]*:$/;
+  const lines = (text || '').split('\n');
+  return (
+    <div style={{
+      padding: '12px 14px', borderRadius: 12, background: C.appBg, border: `1px solid ${C.hair}`,
+      fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', fontSize: 13, lineHeight: 1.65,
+    }}>
+      {lines.map((line, i) => {
+        const indent = /^ */.exec(line)[0].length;
+        const content = line.slice(indent);
+        if (!content) return <div key={i} style={{ height: 8 }} />;
+        const isComment = content.startsWith('#');
+        const isHeader = indent === 0 && HEADER.test(content);
+        const kw = !isComment && !isHeader && KEYWORD.exec(content);
+        return (
+          <div key={i} style={{
+            paddingLeft: indent + 'ch', marginTop: isHeader && i > 0 ? 10 : 0,
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            color: isComment ? C.inkFaint : C.ink,
+            fontStyle: isComment ? 'italic' : 'normal',
+          }}>
+            {isHeader ? (
+              <span style={{ color: C.accentDeep, fontWeight: 700 }}>{content}</span>
+            ) : kw ? (
+              <React.Fragment>
+                <span style={{ color: C.accentDeep, fontWeight: 650 }}>{kw[0]}</span>
+                {content.slice(kw[0].length)}
+              </React.Fragment>
+            ) : content}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Economy mode's answer (app/llm/economy.py): a matched skill-doc served
+   directly, with no LLM call PER REQUEST -- `economy.render` is a save-time
+   render (app/skills/demo.py, a coach's one-time action) of this skill's
+   own reference program as real ProgramBlock JSON, the exact same shape
+   ScreenAnswer's `renderTree` already uses, so BlockPanel renders it
+   identically to a live Build answer. Falls back to the plain-pseudocode
+   CodeBlock only for a skill saved before this existed (or whose render
+   attempt failed) -- `economy.render` empty either way. The follow-up box
+   is the escape hatch into a real AI call, WITH this skill still attached
+   as context server-side (app/api/main.py's economy branch on /ask). */
+function ScreenEconomyAnswer({ lang, setLang, economy, onAskAnother, onFollowUp }) {
+  const t = T[lang];
+  const [followUpText, setFollowUpText] = useState('');
+  const sendFollowUp = () => { if (followUpText.trim()) { onFollowUp(followUpText.trim()); setFollowUpText(''); } };
+
+  return (
+    <div style={{ background: C.card, minHeight: '100vh', minHeight: '100dvh' }}>
+      <div style={{ padding: '10px 16px 6px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.accentDeep, background: C.accentWash, padding: '3px 9px', borderRadius: 6,
+        }}>{t.build}</span>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.inkSoft, background: C.appBg, border: `1px solid ${C.hair}`, padding: '3px 9px', borderRadius: 6,
+        }}>{t.economyBadge} · {economy.skill_name}</span>
+        <span style={{ flex: 1 }} />
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <div style={{ padding: '10px 16px 7px 16px' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase', color: C.inkSoft, marginBottom: 2 }}>{t.summary}</div>
+        <div style={{ fontSize: 14.5, lineHeight: 1.42, color: C.ink }}>{economy.message}</div>
+      </div>
+
+      <div style={{ padding: '0 16px 8px 16px' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase', color: C.inkSoft, marginBottom: 6 }}>{t.sampleCode}</div>
+        {economy.render && economy.render.length > 0 ? (
+          <BlockPanel tree={economy.render} bg={C.card} />
+        ) : (
+          <CodeBlock text={economy.code_text} />
+        )}
+      </div>
+
+      <div style={{ padding: '8px 16px 18px 16px' }}>
+        <div style={{ marginTop: 9, borderTop: `1px solid ${C.hairSoft}`, paddingTop: 8 }}>
+          <EngNote text={t.engNote} />
+        </div>
+
+        <div style={{ marginTop: 14, padding: '12px 13px', borderRadius: 13, background: C.appBg, border: `1.5px solid ${C.hair}` }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.inkSoft, marginBottom: 8 }}>{t.followUpLabel}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={followUpText}
+              onChange={(e) => setFollowUpText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') sendFollowUp(); }}
+              placeholder={t.replyPlaceholder}
+              style={{
+                flex: 1, padding: '11px 12px', borderRadius: 11, border: `1.5px solid ${C.hair}`,
+                fontSize: 14, fontFamily: 'inherit', background: C.card, color: C.ink, outline: 'none',
+              }}
+            />
+            <button onClick={sendFollowUp} disabled={!followUpText.trim()} style={{
+              padding: '0 16px', borderRadius: 11, border: 'none',
+              background: followUpText.trim() ? C.accent : C.hair, color: followUpText.trim() ? '#fff' : C.inkFaint,
+              fontSize: 14, fontWeight: 650, fontFamily: 'inherit', cursor: followUpText.trim() ? 'pointer' : 'default',
+            }}>{t.send}</button>
+          </div>
+        </div>
+
+        <button onClick={onAskAnother} style={{
+          width: '100%', marginTop: 10, padding: '14px', borderRadius: 13, border: `1.5px solid ${C.hair}`,
+          background: C.appBg, color: C.ink, fontSize: 15, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+        }}>{t.askAnother}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   ScreenThread — an in-progress Build conversation: the vendored skill's
+   ask -> confirm -> phase-by-phase protocol (ollo-r-block-assistant.md).
+   `entries` is the transcript so far (oldest first); the last entry is
+   always the pending assistant turn (kind "ask" or "phase") the student is
+   replying to. `kind: "ask"` shows a free-text reply box. `kind: "phase"`
+   shows this phase's blocks (same tap-to-mark-done panel as the final
+   answer) plus a one-tap confirm button, with a small text field as an
+   escape hatch for "actually, wait — ...".
+   ========================================================================== */
+function ScreenThread({ lang, setLang, mode, entries, onReply, onAskAnother, tts }) {
+  const t = T[lang];
+  const [reply, setReply] = useState('');
+  const last = entries[entries.length - 1];
+  const isPhase = last.kind === 'phase';
+
+  // Both "ask" (a clarifying question) and "phase" (a phase's own intro
+  // text) get voiced -- never the blocks themselves, the toggle's whole
+  // point is voicing the non-code turns, not narrating block names. Phase
+  // intros used to be excluded on the theory that reading them aloud was
+  // too much, but that's no longer true now that phase messages are
+  // short/plain-language by default (see pipeline.py's tone rule) rather
+  // than a long technical description. Keyed on entries.length, not
+  // entries itself, so this fires once per newly arrived message rather
+  // than on every unrelated re-render -- entries only ever grows in this
+  // screen's lifetime, never mutates in place.
+  useEffect(() => {
+    if (!tts || !last || last.role !== 'assistant' || !last.voice) return;
+    if (last.kind !== 'ask' && last.kind !== 'phase') return;
+    speak(last.voice);
+  }, [tts, entries.length]);
+
+  // The model sometimes chooses kind="phase" but omits the phase numbers --
+  // a real structural miss (app/schema/validate.py catches it: "kind=phase
+  // requires phase_number and phase_total") that server-side validation
+  // flags but can't attach to any single block, since it's a fault in the
+  // turn itself. Degrade gracefully here rather than rendering "null of
+  // null" -- the turn-level error banner below is what actually surfaces it.
+  const hasPhaseNumbers = isPhase && last.phase_number != null && last.phase_total != null;
+  const phaseLabel = hasPhaseNumbers
+    ? t.phaseLabel.replace('{n}', last.phase_number).replace('{total}', last.phase_total)
+    : null;
+
+  const send = (text) => {
+    if (!text.trim()) return;
+    onReply(text.trim());
+    setReply('');
+  };
+
+  // Mid-thread (an open ask/phase turn, before a final answer) had NO way
+  // back to the entry screen -- ScreenAnswer's own "Ask another question"
+  // button only exists once a thread is already finished. A student stuck
+  // partway through, or wanting to abandon this and start over, had no
+  // path except closing the tab. Confirms first: unlike ScreenAnswer's
+  // button (nothing left to lose, the answer's already delivered), this
+  // discards real in-progress conversation state.
+  const startOver = () => {
+    if (window.confirm(t.discardThreadConfirm)) onAskAnother();
+  };
+
+  return (
+    <div style={{ background: C.appBg, minHeight: '100vh', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        padding: '12px 16px', borderBottom: `1px solid ${C.hair}`, background: C.card,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <button onClick={startOver} title={t.askAnother} style={{ border: 'none', background: 'none', fontSize: 20, color: C.inkSoft, cursor: 'pointer', padding: 0, lineHeight: 1 }}>‹</button>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.accentDeep, background: C.accentWash, padding: '3px 9px', borderRadius: 6,
+        }}>{mode === 'build' ? t.build : t.debug}{phaseLabel ? ` · ${phaseLabel}` : ''}</span>
+        <span style={{ flex: 1 }} />
+        {last.latencySeconds != null && (
+          <span style={{ fontSize: 11.5, color: C.inkFaint, fontVariantNumeric: 'tabular-nums' }}>{formatLatency(last.latencySeconds)}</span>
+        )}
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <div style={{ padding: '16px 16px 0 16px', flex: isPhase ? '0 0 auto' : 1 }}>
+        {entries.map((e, i) => {
+          // Each phase's own blocks used to vanish the moment the NEXT
+          // phase arrived -- the data was always kept per-entry (`e.render`),
+          // just never shown again once it wasn't the latest one. A
+          // student who wants to double back and check what an earlier
+          // phase actually was (did I place that right? what was phase 1
+          // again?) had no way to see it once they'd moved on. Every phase
+          // with real blocks now gets its own panel here, in order; only
+          // the CURRENT (last) one also gets the placement hint and
+          // progress bar, since past phases are already done.
+          const isThisPhase = e.role === 'assistant' && e.kind === 'phase' && e.render && e.render.length > 0;
+          const isCurrentPhase = i === entries.length - 1;
+          const thisHasPhaseNumbers = isThisPhase && e.phase_number != null && e.phase_total != null;
+          return (
+            <div key={i} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: e.role === 'student' ? C.inkFaint : C.accentDeep, marginBottom: 3 }}>
+                {e.role === 'student' ? '—' : t.greet}
+              </div>
+              {e.role === 'student' ? (
+                <div style={{ fontSize: 14, color: C.inkMid, lineHeight: 1.45, fontWeight: 400 }}>{e.content}</div>
+              ) : (
+                <RichText text={e.content} style={{ fontSize: 16, color: C.ink, lineHeight: 1.45, fontWeight: 450 }} />
+              )}
+              {isThisPhase && (
+                <React.Fragment>
+                  {isCurrentPhase && thisHasPhaseNumbers ? (
+                    <ProgressHeader label={t.program} doneCount={e.phase_number} total={e.phase_total} hint={t.phaseHint} />
+                  ) : thisHasPhaseNumbers ? (
+                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: C.inkFaint, margin: '6px 0 2px 0' }}>
+                      {t.phaseLabel.replace('{n}', e.phase_number).replace('{total}', e.phase_total)}
+                    </div>
+                  ) : null}
+                  <div style={{ height: 6 }} />
+                  <BlockPanel tree={e.render} bg={C.card} />
+                </React.Fragment>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <TurnErrorNote errors={last.errors} />
+
+      <div style={{ padding: '10px 16px 22px 16px', marginTop: isPhase ? 0 : 'auto' }}>
+        {isPhase ? (
+          <React.Fragment>
+            <button onClick={() => send(t.readyNextMessage)} style={{
+              width: '100%', padding: '16px', borderRadius: 15, border: 'none',
+              background: C.accent, color: '#fff', fontSize: 16, fontWeight: 650,
+              fontFamily: 'inherit', cursor: 'pointer', boxShadow: '0 6px 18px oklch(0.640 0.155 52 / 0.30)',
+            }}>{t.readyNext} →</button>
+            <div style={{ fontSize: 12, color: C.inkSoft, textAlign: 'center', margin: '10px 0 6px 0' }}>{t.orTypeInstead}</div>
+          </React.Fragment>
+        ) : null}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') send(reply); }}
+            placeholder={t.replyPlaceholder}
+            style={{
+              flex: 1, padding: '13px 14px', borderRadius: 13, border: `1.5px solid ${C.hair}`,
+              fontSize: 15, fontFamily: 'inherit', background: C.card, color: C.ink, outline: 'none',
+            }}
+          />
+          <button onClick={() => send(reply)} disabled={!reply.trim()} style={{
+            padding: '0 18px', borderRadius: 13, border: 'none',
+            background: reply.trim() ? C.accent : C.hair, color: reply.trim() ? '#fff' : C.inkFaint,
+            fontSize: 15, fontWeight: 650, fontFamily: 'inherit', cursor: reply.trim() ? 'pointer' : 'default',
+          }}>{t.send}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* The backend already carries the real failure reason (job.error, from the
+   raw exception -- app/queue/manager.py) all the way to `/answer`'s
+   `error_message` field; this used to be dropped on the floor client-side,
+   so every failure (a rate-limited backend, the whole server unreachable,
+   a genuine model/validation crash) looked identical: a flat "something
+   went wrong" with no way for a student -- or the teacher watching over
+   their shoulder -- to tell which one it was, or whether retrying could
+   possibly help. `detail` is that raw string (or null for a client-side
+   network failure, which never reaches the server at all); humanizeError
+   below maps the couple of failure shapes actually seen live (a 429 from
+   a rate-limited cloud backend, a connection failure) to a plain-language,
+   translated reason, and falls back to showing the raw text (truncated)
+   rather than hiding it, for anything unrecognized -- an unfamiliar raw
+   message is still more actionable than nothing.*/
+function humanizeError(detail, t) {
+  if (!detail) return null;
+  const s = detail.toLowerCase();
+  if (s.includes('429') || s.includes('rate limit') || s.includes('too many requests') || s.includes('quota')) {
+    return t.errorBusy;
+  }
+  if (s.includes('timed out after')) {
+    return t.errorTimeout;
+  }
+  if (s.includes('connection') || s.includes('econnrefused') || s.includes('timed out') || s.includes('timeout') || s.includes('failed to fetch') || s.includes('network')) {
+    return t.errorOffline;
+  }
+  return detail.length > 180 ? detail.slice(0, 180) + '…' : detail;
+}
+function ScreenError({ lang, setLang, detail, onRetry }) {
+  const t = T[lang];
+  const reason = humanizeError(detail, t);
+  return (
+    <div style={{ background: C.appBg, minHeight: '100vh', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 24px', textAlign: 'center' }}>
+        <div style={{ fontSize: 22, fontWeight: 600, color: C.ink, marginBottom: 8 }}>{t.error}</div>
+        <div style={{ fontSize: 14, color: C.inkSoft, lineHeight: 1.5, marginBottom: reason ? 8 : 20 }}>{t.errorHint}</div>
+        {reason && (
+          <div style={{
+            fontSize: 13, color: C.danger, lineHeight: 1.5, marginBottom: 20,
+            background: C.dangerWash, border: `1px solid ${C.dangerEdge}`, borderRadius: 10,
+            padding: '8px 12px', textAlign: 'left',
+          }}>{reason}</div>
+        )}
+        <button onClick={onRetry} style={{
+          padding: '14px', borderRadius: 13, border: 'none', background: C.accent, color: '#fff',
+          fontSize: 15, fontWeight: 650, fontFamily: 'inherit', cursor: 'pointer',
+        }}>{t.retry}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   App shell — the real navigation flow and network plumbing.
+   ========================================================================== */
+/* Restores an in-progress "thread" or "answer" screen across an accidental
+   page reload -- a student mid-way through a multi-phase build losing
+   everything to a stray refresh (or the browser reloading the tab after
+   it was backgrounded a while) was a real, reported gap. sessionStorage,
+   not localStorage: it survives exactly a reload/refresh of THIS tab,
+   which is the actual failure mode being fixed, and clears itself once
+   the tab is closed -- a genuinely NEW visit later (or a different
+   student on a shared device) shouldn't silently resume someone else's
+   half-built program. Deliberately narrow to 'thread'/'answer', the two
+   screens with real accumulated substance worth restoring -- 'queue' has
+   no job_id saved to resume polling against, so a refresh mid-request
+   just restarts from 'entry', which is a far cheaper loss than an entire
+   conversation. */
+/* Ceilings on how long the queue screen will keep polling before calling a
+   request dead. Two values, because the two waits mean different things:
+   "running" means the model is actually working on it -- OPENROUTER_TIMEOUT_
+   SECONDS (app/config.py) is 180s per call, retried once on unparseable
+   JSON, so the backend's own real worst case is ~360s, not the ~120s this
+   comment used to claim (stale after that timeout was raised from 60s ->
+   180s). Caught live: the real request log shows genuine SUCCESSES up to
+   280s for the line-tracing skill specifically (a large six-branch
+   program, slow to generate on any model -- not a stuck request), which
+   the old 180s ceiling here would have already given up on and shown
+   "timed out" for, while the server was still working and about to
+   succeed. "queued" means real students are ahead in the line --
+   legitimately long in a busy class, so it gets a much more forgiving
+   ceiling. */
+const RUNNING_CEILING_MS = 420000;  // 7 min -- past the backend's ~360s real worst case
+const QUEUED_CEILING_MS = 900000;   // 15 min -- a full class queued ahead is not an error
+
+const SESSION_STATE_KEY = 'rblock_session_state';
+function loadSessionState() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed.screen !== 'thread' && parsed.screen !== 'answer') return null;
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+}
+function saveSessionState(state) {
+  try {
+    if (state.screen === 'thread' || state.screen === 'answer') {
+      sessionStorage.setItem(SESSION_STATE_KEY, JSON.stringify(state));
+    } else {
+      sessionStorage.removeItem(SESSION_STATE_KEY);
+    }
+  } catch (e) {}
+}
+
+function App() {
+  const [lang, setLang] = usePersisted('rblock_lang', 'en');
+  const [mode, setMode] = usePersisted('rblock_mode', 'build');
+  // Build only (app/llm/economy.py) -- ignored server-side for Debug even
+  // if left on, but the toggle itself only shows when mode === 'build'.
+  // Deliberately NOT usePersisted: that hook stores raw values in
+  // localStorage via `getItem(key) || initial`, which is safe for the
+  // non-empty-string choices (lang, mode) it was built for but silently
+  // breaks for a boolean -- the STRING "false" is truthy, so a
+  // persisted "off" would read back as on. Plain component state (resets
+  // to off each visit) sidesteps that rather than fixing the hook for a
+  // case that doesn't otherwise arise.
+  const [economy, setEconomy] = useState(false);
+  // Same non-persisted reasoning as `economy` above, plus a second one:
+  // this is a SHARED classroom device (Mac mini, one browser per student
+  // seat) -- audio autoplaying by default for whoever sits down next,
+  // because a previous student left it on, would be a worse surprise than
+  // Economy mode carrying over. Resetting to off every visit is the safer
+  // default either way.
+  const [tts, setTts] = useState(false);
+  // Seeded from sessionStorage via a lazy initializer -- same proven
+  // pattern as usePersisted's own useState(() => localStorage.getItem...)
+  // above, not a separate useMemo (restoring across an accidental reload,
+  // scoped to this one tab; see loadSessionState's own comment).
+  const [screen, setScreen] = useState(() => loadSessionState()?.screen || 'entry'); // entry | ask | queue | thread | answer | error
+  const [errorDetail, setErrorDetail] = useState(null); // raw job.error / network reason for ScreenError
+  const [queueState, setQueueState] = useState({ status: 'queued', position: null, wait: null, startedAt: null });
+  const [result, setResult] = useState(() => loadSessionState()?.result || null); // { answer, render } or { economy } -- the final answer
+  const [thread, setThread] = useState(() => loadSessionState()?.thread || []); // transcript for an open Build ask/phase conversation
+  const deviceId = useMemo(getDeviceId, []);
+  const pollRef = useRef(null);
+  // Read inside the polling interval, which closes over its first render --
+  // a plain `queueState.status` there would be permanently stale, so the
+  // ceiling could never tell "queued behind a class" from "stuck running".
+  const queueStateStatusRef = useRef('queued');
+
+  const stopPolling = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  useEffect(() => stopPolling, []);
+
+  // Persists (or clears, once the screen moves on) after every change --
+  // see loadSessionState/saveSessionState for the exact rule on which
+  // screens are worth restoring.
+  useEffect(() => {
+    saveSessionState({ screen, thread, result });
+  }, [screen, thread, result]);
+
+  // Shared by both a fresh question (ScreenAsk) and a reply continuing an
+  // open thread (ScreenThread) — the server tells them apart from session
+  // state (app/api/main.py's _conversation_history), not the request shape.
+  const sendToServer = async ({ question, imageBase64, continueThread = false }) => {
+    setScreen('queue');
+    setErrorDetail(null);
+    queueStateStatusRef.current = 'queued';  // reset -- the ref outlives one request
+    setQueueState({ status: 'queued', position: null, wait: null, startedAt: Date.now() });
+    try {
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          device_id: deviceId, mode, language: T[lang].name,
+          question, image_base64: imageBase64,
+          economy: mode === 'build' && economy,
+          continue_thread: continueThread,
+        }),
+      });
+      if (!res.ok) throw new Error('ask failed: ' + res.status);
+      const body = await res.json();
+      setQueueState(prev => ({ ...prev, status: 'queued', position: body.position, wait: body.estimated_wait_seconds }));
+
+      const pollStartedAt = Date.now();
+      pollRef.current = setInterval(async () => {
+        try {
+          // A ceiling on the whole wait, so a request that will never
+          // finish surfaces as a real error instead of an endless "Still
+          // working" spinner. Caught live: a server restart mid-request
+          // orphaned the job and the screen just sat there past 200s with
+          // the estimate still cheerfully reading 0-30s.
+          //
+          // Deliberately generous (RUNNING_CEILING is well past the
+          // backend's own worst case -- a 60s model timeout, retried once
+          // = ~120s), and the QUEUED case gets a much longer ceiling
+          // because waiting behind a full class is legitimate, not stuck.
+          const waitedMs = Date.now() - pollStartedAt;
+          const status = queueStateStatusRef.current;
+          const ceiling = status === 'queued' ? QUEUED_CEILING_MS : RUNNING_CEILING_MS;
+          if (waitedMs > ceiling) {
+            stopPolling();
+            setErrorDetail(`timed out after ${Math.round(waitedMs / 1000)}s waiting for the answer`);
+            setScreen('error');
+            return;
+          }
+
+          const r = await fetch(`/answer/${body.job_id}`);
+          const b = await r.json();
+          if (b.status === 'queued' || b.status === 'running') {
+            queueStateStatusRef.current = b.status;
+            setQueueState(prev => ({ ...prev, status: b.status, position: b.position, wait: b.estimated_wait_seconds }));
+            return;
+          }
+          stopPolling();
+          if (b.status !== 'done' || (!b.answer && !b.economy)) {
+            // b.error_message is the raw reason the backend actually
+            // failed for (app/queue/manager.py's job.error, e.g. a
+            // rate-limited backend's own "429 Too Many Requests") --
+            // this used to be fetched and silently discarded here.
+            setErrorDetail(b.error_message || null);
+            setScreen('error');
+            return;
+          }
+          if (b.economy) {
+            setResult({ economy: b.economy });
+            setScreen('answer');
+            return;
+          }
+          // Build: kind is ask/phase/complete, text lives in `message`.
+          // Debug: kind is now ask/answer (DebugAnswer.kind — it can ask
+          // ONE clarifying question before diagnosing), and has no
+          // `message` field at all — the question text lives in
+          // `summary` instead (Debug's `fault` only gets filled in once
+          // the diagnosis itself is known, on the final `answer` turn).
+          // Total time from submitting THIS question/reply to the answer
+          // actually landing -- queue wait + generation + network, i.e.
+          // what a student actually experienced, not just the backend's
+          // own internal generation time (already logged server-side but
+          // never shown here). pollStartedAt is set right after the /ask
+          // POST that started this specific wait, so this resets cleanly
+          // per turn rather than accumulating across a whole thread.
+          const latencySeconds = (Date.now() - pollStartedAt) / 1000;
+          const kind = b.answer.kind;
+          const content = mode === 'debug' ? (b.answer.summary || '') : b.answer.message;
+          if (kind === 'ask' || kind === 'phase') {
+            setThread(prev => [...prev, {
+              role: 'assistant', content, kind, voice: b.answer.voice,
+              render: b.render, phase_number: b.answer.phase_number, phase_total: b.answer.phase_total,
+              errors: b.errors, latencySeconds,
+            }]);
+            setScreen('thread');
+          } else {
+            setResult({ answer: b.answer, render: b.render || [], errors: b.errors, latencySeconds });
+            setScreen('answer');
+          }
+        } catch (e) {
+          // Never reached the server at all (dropped wifi, server down) --
+          // there's no job.error to show, but "network" still routes
+          // humanizeError to the offline-specific message instead of the
+          // fully generic one.
+          stopPolling();
+          setErrorDetail('network: ' + e.message);
+          setScreen('error');
+        }
+      }, 900);
+    } catch (e) {
+      setErrorDetail('network: ' + e.message);
+      setScreen('error');
+    }
+  };
+
+  const submit = ({ question, imageBase64 }) => {
+    setThread([{ role: 'student', content: question }]);
+    sendToServer({ question, imageBase64 });
+  };
+
+  const reply = (text) => {
+    setThread(prev => [...prev, { role: 'student', content: text }]);
+    sendToServer({ question: text, imageBase64: null, continueThread: true });
+  };
+
+  const askAnother = () => { setResult(null); setThread([]); setScreen('ask'); };
+
+  // A follow-up from the answer screen -- distinct from `reply` (which
+  // continues an already-open ask/phase thread). `continueThread: true`
+  // tells the server this reacts to what's already on screen, not an
+  // unrelated new topic: for a `complete` answer (the thread closed on
+  // purpose server-side) it carries the finished program's real blocks
+  // forward so "now also add X" can actually extend it, not just restate
+  // the request into a blank slate. That matters just as much when the
+  // answer was broken (empty blocks, a confused message) -- the student
+  // can say what they actually meant instead of being stuck with only
+  // "start over from the entry screen" as an option, same as before.
+  const followUp = (text) => {
+    setResult(null);
+    setThread([{ role: 'student', content: text }]);
+    sendToServer({ question: text, imageBase64: null, continueThread: true });
+  };
+
+  let screenEl;
+  if (screen === 'entry') {
+    screenEl = <ScreenEntry lang={lang} setLang={setLang} mode={mode} setMode={setMode} economy={economy} setEconomy={setEconomy} tts={tts} setTts={setTts} onGo={() => setScreen('ask')} />;
+  } else if (screen === 'ask') {
+    screenEl = <ScreenAsk lang={lang} setLang={setLang} mode={mode} onBack={() => setScreen('entry')} onSubmit={submit} />;
+  } else if (screen === 'queue') {
+    screenEl = <ScreenQueue lang={lang} setLang={setLang} status={queueState.status} position={queueState.position} wait={queueState.wait} startedAt={queueState.startedAt} />;
+  } else if (screen === 'thread' && thread.length) {
+    screenEl = <ScreenThread lang={lang} setLang={setLang} mode={mode} entries={thread} onReply={reply} onAskAnother={askAnother} tts={tts} />;
+  } else if (screen === 'answer' && result && result.economy) {
+    screenEl = <ScreenEconomyAnswer lang={lang} setLang={setLang} economy={result.economy} onAskAnother={askAnother} onFollowUp={followUp} />;
+  } else if (screen === 'answer' && result) {
+    screenEl = <ScreenAnswer lang={lang} setLang={setLang} mode={mode} answer={result.answer} renderTree={result.render} errors={result.errors} latencySeconds={result.latencySeconds} onAskAnother={askAnother} onFollowUp={followUp} tts={tts} />;
+  } else {
+    screenEl = <ScreenError lang={lang} setLang={setLang} detail={errorDetail} onRetry={() => { setErrorDetail(null); setScreen('ask'); }} />;
+  }
+
+  // This app is built for a phone/tablet in a student's hand (design
+  // brief: "per student device"), and every screen's own inner styling
+  // assumes a narrow-ish width -- block rows in particular size their
+  // category tag with `marginLeft: 'auto'`, which only reads well when the
+  // row is close to the content's own width. Un-constrained on a wide
+  // desktop browser (how this got tested during development), rows
+  // stretch edge-to-edge with a huge empty gap before the tag instead of
+  // wrapping, which is what originally prompted this cap.
+  //
+  // Widened from an initial 480 (phone-only) to 640 -- deeply nested
+  // conditions (a `Logical And / Or` combining two `If the IR sensor
+  // value` hexes) need real horizontal room to sit compactly instead of
+  // stacking every operand on its own line, which was reported as hard to
+  // read the opposite way at 480. 640 is still comfortably invisible on an
+  // actual phone (this cap never engages below its own value), and reads
+  // as a wide tablet/small-laptop column on desktop rather than the
+  // original phone-width frame -- a real tradeoff, not free: 480 was
+  // deliberately phone-exact, 640 is a compromise that also serves the
+  // desktop-preview case this session's testing actually happens in.
+  return (
+    <div style={{ maxWidth: 640, margin: '0 auto', minHeight: '100vh', minHeight: '100dvh' }}>
+      {screenEl}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>R Block Coding Buddy — Prompts</title>
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: oklch(0.968 0.006 78);
+    color: oklch(0.245 0.015 60);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+    padding: 32px 16px 80px 16px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  .top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  h1 { font-size: 20px; font-weight: 650; margin: 0; }
+  .back { font-size: 13px; color: oklch(0.640 0.155 52); text-decoration: none; font-weight: 600; }
+  .sub { font-size: 13px; color: oklch(0.615 0.012 62); margin-bottom: 22px; }
+  .warning {
+    background: oklch(0.975 0.045 70); border: 1.5px solid oklch(0.820 0.110 60); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 20px; font-size: 13px; line-height: 1.55; color: oklch(0.400 0.090 55);
+  }
+  .warning b { color: oklch(0.340 0.100 50); }
+  .card {
+    background: #fff; border: 1px solid oklch(0.905 0.007 70); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 16px; box-shadow: 0 2px 10px oklch(0.2 0 0 / 0.04);
+  }
+  .card-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .card-row h3 { font-size: 15px; margin: 0; flex: 1; }
+  .badge {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    padding: 3px 8px; border-radius: 6px;
+  }
+  .badge.default { background: oklch(0.955 0.010 70); color: oklch(0.550 0.014 60); }
+  .badge.custom { background: oklch(0.960 0.028 62); color: oklch(0.470 0.135 48); }
+  .hint { font-size: 12.5px; color: oklch(0.615 0.012 62); margin: 4px 0 10px 0; line-height: 1.5; }
+  textarea {
+    width: 100%; padding: 10px 12px; border-radius: 9px; border: 1.5px solid oklch(0.905 0.007 70);
+    font-size: 13px; font-family: ui-monospace, "SF Mono", Menlo, monospace; line-height: 1.5;
+    outline: none; background: oklch(0.985 0.004 84); resize: vertical; white-space: pre; tab-size: 2;
+    min-height: 220px;
+  }
+  textarea:focus { border-color: oklch(0.640 0.155 52); }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .pill-btn {
+    padding: 7px 14px; border-radius: 8px; border: 1.5px solid oklch(0.905 0.007 70);
+    background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; color: oklch(0.360 0.02 60);
+  }
+  .pill-btn.primary { border-color: oklch(0.640 0.155 52); color: oklch(0.640 0.155 52); }
+  .pill-btn:disabled { opacity: 0.5; cursor: default; }
+  .primary-btn {
+    padding: 13px; border-radius: 11px; border: none; width: 100%;
+    background: oklch(0.640 0.155 52); color: #fff; font-size: 15px; font-weight: 650;
+    font-family: inherit; cursor: pointer;
+  }
+  .status { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; display: none; }
+  .status.ok { display: block; background: oklch(0.968 0.018 155); color: oklch(0.360 0.075 155); border: 1px solid oklch(0.870 0.045 155); }
+  .status.err { display: block; background: oklch(0.963 0.026 25); color: oklch(0.330 0.075 30); border: 1px solid oklch(0.855 0.090 25); }
+  #loginCard { max-width: 440px; margin: 40px auto; }
+  label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.6px; color: oklch(0.455 0.014 60); margin: 0 0 6px 0; }
+  input[type=password] {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1.5px solid oklch(0.905 0.007 70);
+    font-size: 15px; font-family: inherit; outline: none; background: oklch(0.985 0.004 84);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card" id="loginCard" style="display:none;">
+    <h1>R Block Buddy — Prompts</h1>
+    <div class="sub">Log in to edit what the assistant is told.</div>
+    <label>Admin password</label>
+    <input type="password" id="password" placeholder="Password" />
+    <button class="primary-btn" id="loginBtn">Log in</button>
+    <div class="status" id="loginStatus"></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="top">
+      <h1>Prompts</h1>
+      <a href="/admin.html" class="back">← Back to admin</a>
+    </div>
+    <div class="sub">The full instructions sent to the model on every Build/Debug request — rewrite them, or leave them as-is.</div>
+
+    <div class="warning">
+      <b>This can break the app for every student at once.</b> These three pieces of text
+      are stitched together (<code>{mode_label}</code>, <code>{language}</code>, <code>{mode_extra}</code>,
+      <code>{directory_context}</code> get automatically filled in) into the exact instructions sent to the
+      model on every request — a saved edit takes effect immediately, no restart needed, and applies to
+      every student's very next question. Deleting a <code>{placeholder}</code> or leaving a stray
+      <code>{</code>/<code>}</code> will be rejected before it can save, so it can't silently break things —
+      but a save that mechanically checks out can still make the assistant behave worse (wrong tone, missing
+      rules, confused answers). If in doubt, use <b>Reset to default</b>.
+    </div>
+
+    <div id="fields"></div>
+
+    <button class="primary-btn" id="saveBtn">Save all changes</button>
+    <div class="status" id="status"></div>
+  </div>
+
+</div>
+
+<script>
+let token = sessionStorage.getItem('admin_token');
+const el = (id) => document.getElementById(id);
+const showStatus = (id, msg, ok) => {
+  const s = el(id);
+  s.textContent = msg;
+  s.className = 'status ' + (ok ? 'ok' : 'err');
+};
+
+async function api(path, opts) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts && opts.headers) },
+  });
+  if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
+  return res;
+}
+
+function showLogin() {
+  token = null;
+  sessionStorage.removeItem('admin_token');
+  el('loginCard').style.display = 'block';
+  el('app').style.display = 'none';
+}
+
+el('loginBtn').addEventListener('click', async () => {
+  const password = el('password').value;
+  try {
+    const res = await fetch('/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) { showStatus('loginStatus', 'Wrong password, or admin login is not configured.', false); return; }
+    const body = await res.json();
+    token = body.token;
+    sessionStorage.setItem('admin_token', token);
+    el('loginCard').style.display = 'none';
+    el('app').style.display = 'block';
+    await loadPrompts();
+  } catch (e) {
+    showStatus('loginStatus', 'Could not reach the server.', false);
+  }
+});
+
+// One entry per field this admin page exposes -- `key` matches the
+// PromptsResponse/PromptsUpdate field names in app/api/main.py exactly, so
+// building the request body is a straight object literal, no per-field
+// special-casing.
+const FIELDS = [
+  { key: 'system_template', title: 'System template', desc: 'The base instructions -- block rules, JSON schema shape, tone. Must contain {mode_label}, {language}, {mode_extra}, and {directory_context} exactly once each.' },
+  { key: 'build_extra', title: 'Build extra', desc: 'Appended only for Build requests -- the ask -> confirm -> phase-by-phase coaching flow.' },
+  { key: 'debug_extra', title: 'Debug extra', desc: 'Appended only for Debug requests -- when to ask a clarifying question, how to state the fault.' },
+];
+
+let current = null; // last loaded PromptsResponse
+
+function fieldHtml(f) {
+  return `
+    <div class="card" id="card_${f.key}">
+      <div class="card-row">
+        <h3>${f.title}</h3>
+        <span class="badge" id="badge_${f.key}"></span>
+      </div>
+      <div class="hint">${f.desc}</div>
+      <textarea id="ta_${f.key}" spellcheck="false"></textarea>
+      <div class="hint" id="defaultNote_${f.key}" style="margin-top:6px;"></div>
+      <div class="btn-row">
+        <button class="pill-btn" data-reset="${f.key}">Reset to default</button>
+        <button class="pill-btn primary" data-set-default="${f.key}">Set as default</button>
+        <button class="pill-btn" data-restore-original="${f.key}" style="display:none;">Restore original (undo all customization)</button>
+      </div>
+      <div class="status" id="fieldStatus_${f.key}"></div>
+    </div>`;
+}
+el('fields').innerHTML = FIELDS.map(fieldHtml).join('');
+
+function renderField(f, body) {
+  el(`ta_${f.key}`).value = body[f.key];
+  const badge = el(`badge_${f.key}`);
+  const isDefault = body[`${f.key}_is_default`];
+  badge.textContent = isDefault ? 'default' : 'customized';
+  badge.className = 'badge ' + (isDefault ? 'default' : 'custom');
+  // "Reset to default" goes back to a TEAM'S OWN saved default once one has
+  // been set via "Set as default" -- not necessarily the original text
+  // this app shipped with -- so say which one plainly rather than let
+  // "default" read as a stronger promise than it is.
+  const hasCustomDefault = body[`default_${f.key}_is_custom`];
+  el(`defaultNote_${f.key}`).textContent = hasCustomDefault
+    ? '"Reset to default" goes back to your own saved default below, not the original text this app shipped with.'
+    : '"Reset to default" goes back to the original text this app shipped with.';
+  el(`fields`).querySelector(`[data-restore-original="${f.key}"]`).style.display = hasCustomDefault ? '' : 'none';
+}
+
+async function loadPrompts() {
+  const res = await api('/admin/prompts');
+  if (!res.ok) return;
+  current = await res.json();
+  FIELDS.forEach((f) => renderField(f, current));
+}
+
+document.querySelectorAll('[data-reset]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.reset;
+    el(`ta_${key}`).value = current[`default_${key}`];
+    // Reset takes effect on the NEXT save, same as any other edit -- an
+    // empty-string sentinel here would already match what the backend
+    // treats as "reset", but showing the real default text (rather than
+    // a blank box) is clearer about what "reset" actually means before
+    // committing to it.
+  });
+});
+
+// Unlike Reset (which just fills the textarea, staged for the next Save),
+// "Set as default" acts immediately on its own field only -- it promotes
+// EXACTLY what's in the box right now, so waiting for a batched "Save all"
+// click would leave it ambiguous whether it promoted the old server text
+// or an unsaved edit sitting in a DIFFERENT field's textarea.
+document.querySelectorAll('[data-set-default]').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const key = btn.dataset.setDefault;
+    const text = el(`ta_${key}`).value;
+    if (!confirm(`Save this as the new default for "${key.replace('_', ' ')}"?\n\n"Reset to default" will go back to THIS text from now on, not the original.`)) {
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const res = await api('/admin/prompts', {
+        method: 'POST',
+        body: JSON.stringify({ [key]: text, [`${key}_set_as_default`]: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showStatus(`fieldStatus_${key}`, body.detail || 'Failed to set as default.', false);
+        return;
+      }
+      current = body;
+      FIELDS.forEach((f) => renderField(f, current));
+      showStatus(`fieldStatus_${key}`, 'Saved as the new default.', true);
+    } catch (e) {
+      showStatus(`fieldStatus_${key}`, 'Could not reach the server.', false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
+
+// Only visible once a field has its own custom default (renderField hides
+// it otherwise) -- clears BOTH layers back to None, so "Reset to default"
+// reaches the ORIGINAL shipped text again, not stuck on a custom default
+// with no way back except hand-editing data/prompts.json.
+document.querySelectorAll('[data-restore-original]').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const key = btn.dataset.restoreOriginal;
+    if (!confirm(`Undo ALL customization for "${key.replace('_', ' ')}" and go back to the original text this app shipped with?`)) {
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const res = await api('/admin/prompts', {
+        method: 'POST',
+        body: JSON.stringify({ [`${key}_restore_original`]: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showStatus(`fieldStatus_${key}`, body.detail || 'Failed to restore.', false);
+        return;
+      }
+      current = body;
+      FIELDS.forEach((f) => renderField(f, current));
+      showStatus(`fieldStatus_${key}`, 'Restored to the original text.', true);
+    } catch (e) {
+      showStatus(`fieldStatus_${key}`, 'Could not reach the server.', false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
+
+el('saveBtn').addEventListener('click', async () => {
+  // Only send fields that actually changed from what was last loaded --
+  // an admin editing just one textarea shouldn't risk re-submitting (and
+  // re-validating) the other two untouched ones. A field reset all the
+  // way back to the real default is sent as "" (the backend's reset
+  // sentinel), not the default text itself, so it's stored as `None`
+  // (matching a fresh install) rather than a "customized" copy of the
+  // default that happens to read identically.
+  const payload = {};
+  for (const f of FIELDS) {
+    const value = el(`ta_${f.key}`).value;
+    if (value === current[f.key]) continue; // unchanged
+    payload[f.key] = value.trim() === current[`default_${f.key}`].trim() ? '' : value;
+  }
+  if (Object.keys(payload).length === 0) {
+    showStatus('status', 'Nothing changed.', true);
+    return;
+  }
+  el('saveBtn').disabled = true;
+  try {
+    const res = await api('/admin/prompts', { method: 'POST', body: JSON.stringify(payload) });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showStatus('status', body.detail || 'Save failed.', false);
+      return;
+    }
+    current = body;
+    FIELDS.forEach((f) => renderField(f, current));
+    showStatus('status', 'Saved and applied — takes effect on the next question, no restart needed.', true);
+  } catch (e) {
+    showStatus('status', 'Could not reach the server.', false);
+  } finally {
+    el('saveBtn').disabled = false;
+  }
+});
+
+(async function init() {
+  if (!token) { showLogin(); return; }
+  try {
+    const res = await api('/admin/prompts');
+    if (!res.ok) { showLogin(); return; }
+    el('loginCard').style.display = 'none';
+    el('app').style.display = 'block';
+    await loadPrompts();
+  } catch (e) {
+    showLogin();
+  }
+})();
+</script>
+</body>
+</html>

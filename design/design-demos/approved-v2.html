@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>R Block Coding Buddy — Approved direction v2</title>
+
+<!--
+================================================================================
+APPROVED DIRECTION v2 — refinement of benchmark-transfer.html
+(Kitchen Stories, Apple Design Award 2017 — verified winner)
+
+WHAT IS UNCHANGED (the approved design language)
+  - Warm near-white paper field, chroma <= 0.012 on all large surfaces.
+  - Light display typography, generous whitespace, hairlines not boxes.
+  - The sticky "N / M placed" transcribe-mode counter that never scrolls away.
+  - One unmistakable NEXT UP target.
+  - The Build/Debug commitment fork on entry.
+  - Inline slots living inside the block itself — never in a legend elsewhere.
+
+WHAT CHANGED IN v2
+  1. The block panel is rebuilt in R Block's own visual grammar: solid rounded
+     blocks, stacked with no gaps and a puzzle tab between them; C-shaped
+     wrappers (Forever, Repeat, if/then) that physically ENCLOSE their contents
+     with a left spine and a bottom arm; if / else as labels on that spine;
+     dropdown pills with a chevron; oval value slots; hexagonal condition
+     blocks seated in the if-block's condition socket. Nesting is now shown by
+     CONTAINMENT, not by indenting text rows.
+  2. Category hues carry R Block's own identity (Control periwinkle, Variable
+     orange, Sensing purple) retuned in oklch to sit inside the paper palette.
+  3. Every block name and every default value is taken from
+     vendor/r-block-directory.md. Nothing is invented.
+================================================================================
+-->
+
+<style>
+  /* ==========================================================================
+     COLOUR
+     --------------------------------------------------------------------------
+     Field logic is inherited unchanged from the approved direction: a warm,
+     near-white paper surface so that content, not chrome, owns the eye.
+
+     CATEGORY HUES — identity kept, volume lowered.
+     R Block's own tabs are read straight off the app: Control = periwinkle
+     blue, Variable = orange, Sensing = purple. Those three are non-negotiable
+     because the student is looking at the real app while they read this.
+     Motion / Calculation / Function / Screen / Sound were chosen to fan out
+     evenly around the remaining wheel with no pair inside 30 degrees. All
+     eight are then forced onto one ramp — fill oklch(L .80 / C .105), ink
+     oklch(L .29 / C .075) — so the panel reads as one family of blocks in one
+     material rather than eight competing brands.
+
+     THE AMBER / ORANGE COLLISION — solved by removing colour from the contest.
+     -------------------------------------------------------------------------
+     The approved design gives ember amber to the student's POSITION. R Block
+     gives orange to the Variable category. Two warm hues cannot arbitrate that
+     at arm's length in bad light, so position is not asked to win a hue
+     contest at all. It is moved onto three channels no block can occupy:
+
+       (a) PLACE — position lives in a 34px gutter OUTSIDE the block column.
+           No block is ever drawn there. Amber inside the column does not
+           exist; orange inside the gutter does not exist.
+       (b) FORM — position is a solid pointing TRIANGLE and a 2px rail. Every
+           block is a rounded rectangle, pill, oval or hexagon. Nothing else
+           on the screen is a triangle.
+       (c) WEIGHT — the next-up block additionally carries a 2.5px near-black
+           ink ring, the only near-black outline in the product. Ink is a
+           value channel, not a hue channel, so it survives even if a student
+           is colour-blind or the screen is washed out by hall lighting.
+
+     Variable's orange is further pushed to hue 68 at fill lightness .80, while
+     position amber stays the saturated oklch(.64 .155 52). Different hue,
+     different lightness, different place, different shape.
+
+     Validation red oklch(0.53 0.21 25) remains unique to a rejected block
+     name: no category hue is within 40 degrees of it, and no block fill is
+     that dark or that chromatic.
+     ========================================================================== */
+  :root {
+    --paper: oklch(0.968 0.006 78);
+  }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 700px at 18% -8%, oklch(0.995 0.006 82) 0%, transparent 62%),
+      radial-gradient(900px 600px at 92% 4%, oklch(0.975 0.016 58) 0%, transparent 58%),
+      var(--paper);
+    color: oklch(0.245 0.015 60);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+  }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useRef, useLayoutEffect } = React;
+
+/* ============================================================================
+   IosFrame — copied verbatim from
+   .claude/skills/huashu-design/assets/ios_frame.jsx
+   ========================================================================== */
+const iosFrameStyles = {
+  wrapper: {
+    display: 'inline-block',
+    padding: 12,
+    background: '#000',
+    borderRadius: 60,
+    boxShadow: '0 0 0 2px #1f2937, 0 20px 60px rgba(0,0,0,0.3)',
+    position: 'relative',
+  },
+  screen: {
+    position: 'relative',
+    borderRadius: 48,
+    overflow: 'hidden',
+    background: '#fff',
+  },
+  statusBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 54,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 32px 0 32px',
+    fontSize: 16,
+    fontWeight: 600,
+    fontFamily: '-apple-system, "SF Pro Text", sans-serif',
+    zIndex: 20,
+    pointerEvents: 'none',
+  },
+  dynamicIsland: {
+    position: 'absolute',
+    top: 12,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 124,
+    height: 36,
+    background: '#000',
+    borderRadius: 999,
+    zIndex: 30,
+  },
+  statusIcons: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  signalIcon: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: 2,
+    height: 12,
+  },
+  signalBar: {
+    width: 3,
+    background: 'currentColor',
+    borderRadius: 1,
+  },
+  wifiIcon: {
+    width: 16,
+    height: 12,
+    position: 'relative',
+  },
+  batteryIcon: {
+    width: 26,
+    height: 12,
+    border: '1.5px solid currentColor',
+    borderRadius: 3,
+    padding: 1,
+    position: 'relative',
+    opacity: 0.8,
+  },
+  batteryCap: {
+    position: 'absolute',
+    top: 3,
+    right: -3,
+    width: 2,
+    height: 6,
+    background: 'currentColor',
+    borderRadius: '0 1px 1px 0',
+  },
+  content: {
+    position: 'absolute',
+    top: 54,
+    left: 0,
+    right: 0,
+    bottom: 34,
+    overflow: 'auto',
+  },
+  homeIndicator: {
+    position: 'absolute',
+    bottom: 10,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 140,
+    height: 5,
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: 999,
+    zIndex: 10,
+  },
+  homeIndicatorDark: {
+    background: 'rgba(255,255,255,0.5)',
+  },
+};
+
+function IosFrame({
+  children,
+  width = 393,
+  height = 852,
+  time = '9:41',
+  battery = 100,
+  darkMode = false,
+  showStatusBar = true,
+  showDynamicIsland = true,
+  showHomeIndicator = true,
+}) {
+  const textColor = darkMode ? '#fff' : '#000';
+
+  return (
+    <div style={iosFrameStyles.wrapper}>
+      <div style={{
+        ...iosFrameStyles.screen,
+        width,
+        height,
+        background: darkMode ? '#000' : '#fff',
+      }}>
+        {showStatusBar && (
+          <div style={{ ...iosFrameStyles.statusBar, color: textColor }}>
+            <span>{time}</span>
+            <div style={iosFrameStyles.statusIcons}>
+              <div style={iosFrameStyles.signalIcon}>
+                <div style={{ ...iosFrameStyles.signalBar, height: 4 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 6 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 9 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 11 }} />
+              </div>
+              <svg width="16" height="12" viewBox="0 0 16 12" fill="none" style={{ color: textColor }}>
+                <path d="M8 11.5a1 1 0 100-2 1 1 0 000 2z" fill="currentColor" />
+                <path d="M3 7.5a7 7 0 0110 0" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+                <path d="M1 4.5a11 11 0 0114 0" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.7" />
+              </svg>
+              <div style={iosFrameStyles.batteryIcon}>
+                <div style={{
+                  width: `${battery}%`,
+                  height: '100%',
+                  background: 'currentColor',
+                  borderRadius: 1,
+                  opacity: 0.9,
+                }} />
+                <div style={iosFrameStyles.batteryCap} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showDynamicIsland && <div style={iosFrameStyles.dynamicIsland} />}
+
+        <div style={iosFrameStyles.content}>
+          {children}
+        </div>
+
+        {showHomeIndicator && (
+          <div style={{
+            ...iosFrameStyles.homeIndicator,
+            ...(darkMode ? iosFrameStyles.homeIndicatorDark : {}),
+          }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   Tokens
+   ========================================================================== */
+const C = {
+  card: 'oklch(0.995 0.002 90)',
+  appBg: 'oklch(0.985 0.004 84)',
+  ink: 'oklch(0.245 0.015 60)',
+  inkMid: 'oklch(0.455 0.014 60)',
+  inkSoft: 'oklch(0.615 0.012 62)',
+  inkFaint: 'oklch(0.740 0.010 65)',
+  hair: 'oklch(0.905 0.007 70)',
+  hairSoft: 'oklch(0.945 0.005 74)',
+  accent: 'oklch(0.640 0.155 52)',
+  accentDeep: 'oklch(0.470 0.135 48)',
+  accentWash: 'oklch(0.960 0.028 62)',
+  accentEdge: 'oklch(0.885 0.060 58)',
+  danger: 'oklch(0.530 0.210 25)',
+  dangerWash: 'oklch(0.963 0.026 25)',
+  dangerEdge: 'oklch(0.855 0.090 25)',
+  done: 'oklch(0.520 0.075 155)',
+  doneWash: 'oklch(0.968 0.018 155)',
+};
+
+const MONO = 'ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, monospace';
+
+/* Category ramp. One lightness/chroma ramp, eight hues.
+   Control / Variable / Sensing hues are R Block's own tab identity. */
+function cat(h) {
+  return {
+    h,
+    fill: `oklch(0.800 0.105 ${h})`,
+    dim:  `oklch(0.918 0.030 ${h})`,
+    edge: `oklch(0.700 0.115 ${h})`,
+    ink:  `oklch(0.290 0.075 ${h})`,
+    inkDim: `oklch(0.560 0.030 ${h})`,
+    slot: `oklch(0.955 0.020 ${h})`,
+    slotEdge: `oklch(0.640 0.070 ${h})`,
+  };
+}
+const CAT = {
+  Control:     cat(275),   /* periwinkle blue — R Block's own Control tab */
+  Variable:    cat(68),    /* orange — R Block's own Variable tab */
+  Sensing:     cat(310),   /* purple — R Block's own Sensing tab */
+  Motion:      cat(196),   /* teal */
+  Calculation: cat(150),   /* green */
+  Function:    cat(340),   /* magenta */
+  Screen:      cat(245),   /* deep blue */
+  Sound:       cat(105),   /* olive-yellow */
+};
+
+/* ============================================================================
+   Interface copy. Block names are NEVER in here — they are English by
+   contract, and the UI marks that fact rather than hiding it.
+   ========================================================================== */
+const T = {
+  en: {
+    code: 'EN', name: 'English',
+    greet: 'R Block Buddy',
+    sub: 'Robotics club · ROBOTIS R+ Ollo',
+    pick: 'What do you need?',
+    build: 'Build', buildSub: 'Write me a program',
+    debug: 'Debug', debugSub: "Mine doesn't work",
+    lang: 'Language', langNote: 'Saved on this device',
+    askTitle: 'Build',
+    askQ: 'What should the robot do?',
+    addPhoto: 'Add a photo', photoHint: 'Course layout or your robot',
+    attached: 'Photo attached', remove: 'Remove', go: 'Ask',
+    queueTitle: 'Working on it',
+    inQueue: 'You are in the queue', position: 'Position', ahead: 'ahead of you',
+    est: 'Estimated wait',
+    stages: ['Question received', 'Reading your photo', 'Choosing blocks', 'Checking every block name'],
+    keep: 'You can keep building. We will hold your answer here.',
+    summary: 'Summary', program: 'Program', placed: 'placed',
+    nextUp: 'Next up', tapHint: 'Tap each block as you place it in R+',
+    note: 'Note',
+    engNote: 'Block names stay in English — that is what R+ shows',
+    wrong: 'What was wrong', allDone: 'All blocks placed',
+    notReal: 'Not a real block',
+  },
+  ms: {
+    code: 'BM', name: 'Bahasa Malaysia',
+    greet: 'R Block Buddy',
+    sub: 'Kelab robotik · ROBOTIS R+ Ollo',
+    pick: 'Apa yang anda perlukan?',
+    build: 'Bina', buildSub: 'Tuliskan atur cara untuk saya',
+    debug: 'Baiki', debugSub: 'Punya saya tak jalan',
+    lang: 'Bahasa', langNote: 'Disimpan pada peranti ini',
+    askTitle: 'Baiki',
+    askQ: 'Apa yang sepatutnya robot buat?',
+    addPhoto: 'Tambah gambar', photoHint: 'Susun atur trek atau robot anda',
+    attached: 'Gambar dilampirkan', remove: 'Buang', go: 'Tanya',
+    queueTitle: 'Sedang diproses',
+    inQueue: 'Anda berada dalam barisan', position: 'Kedudukan', ahead: 'di hadapan anda',
+    est: 'Anggaran menunggu',
+    stages: ['Soalan diterima', 'Membaca gambar anda', 'Memilih blok', 'Menyemak setiap nama blok'],
+    keep: 'Teruskan membina. Jawapan anda akan disimpan di sini.',
+    summary: 'Ringkasan', program: 'Atur cara', placed: 'dipasang',
+    nextUp: 'Seterusnya', tapHint: 'Ketik setiap blok selepas anda pasang dalam R+',
+    note: 'Nota',
+    engNote: 'Nama blok kekal dalam Bahasa Inggeris — itulah yang R+ papar',
+    wrong: 'Apa yang salah', allDone: 'Semua blok telah dipasang',
+    notReal: 'Blok ini tidak wujud',
+  },
+  zh: {
+    code: '中文', name: '中文',
+    greet: 'R Block 助手',
+    sub: '机器人社团 · ROBOTIS R+ Ollo',
+    pick: '你需要什么帮助？',
+    build: '编写', buildSub: '帮我写一段程序',
+    debug: '排错', debugSub: '我的程序跑不通',
+    lang: '界面语言', langNote: '已保存在本机',
+    askTitle: '编写',
+    askQ: '机器人应该做什么？',
+    addPhoto: '添加照片', photoHint: '赛道布局或你的机器人',
+    attached: '已附加照片', remove: '移除', go: '提问',
+    queueTitle: '正在处理',
+    inQueue: '你正在排队中', position: '当前位次', ahead: '人在你前面',
+    est: '预计等待',
+    stages: ['已收到问题', '正在读取照片', '正在挑选积木', '正在核对每个积木名称'],
+    keep: '你可以继续动手，答案会留在这里。',
+    summary: '摘要', program: '程序', placed: '已放置',
+    nextUp: '下一步', tapHint: '每在 R+ 里放好一块就点一下',
+    note: '备注',
+    engNote: '积木名称保持英文 —— R+ 里显示的就是英文',
+    wrong: '问题出在哪里', allDone: '全部积木已放置',
+    notReal: '不存在这个积木',
+  },
+};
+
+/* ============================================================================
+   PROGRAM DATA
+   ----------------------------------------------------------------------------
+   Every block name below is copied from vendor/r-block-directory.md and every
+   slot value is that block's DOCUMENTED default unless the program logically
+   requires otherwise.
+
+     Variable  · "Define [Dropdown] as [Value Slot]"            variable_1
+     Control   · "Forever"                                       C-block
+     Control   · "[Icon] if [Condition] then"       gear icon, hex socket, else
+     Sensing   · "If the [Dropdown] IR sensor value [Dropdown] [Value]"
+                                                     No.1  ·  >  ·  200
+     Motion    · "Move robot's [Dropdown] [Dropdown] at speed [Value]"
+                                                     Back axis · Forward · 50
+     Motion    · "Rotate in [Dropdown] the back axis of [Dropdown] at speed
+                  [Value] ."                         clockwise · Left · 50
+     Sound     · "Play melody [Dropdown]"                        No.1
+     Variable  · "Add the variable [Dropdown] by [Value]"    variable_1 · 1
+     Control   · "Repeat [Value] time(s)"                        10
+     Motion    · "Stop robot"
+     Control   · "End Program"
+
+   Slot kinds: 'd' dropdown pill (chevron), 'v' oval value, 't' fixed text,
+   'g' the blue configuration gear icon of the if-block.
+   ========================================================================== */
+
+const BUILD_TREE = [
+  { id: 'v1', cat: 'Variable', p: [['t','Define'],['d','variable_1'],['t','as'],['v','0']] },
+  { id: 'f1', cat: 'Control', c: true, p: [['t','Forever']], body: [
+      { id: 'i1', cat: 'Control', ifBlock: true,
+        p: [['g'],['t','if'],['cond'],['t','then']],
+        cond: { id: 'c1', cat: 'Sensing', hex: true,
+                p: [['t','If the'],['d','No.1'],['t','IR sensor value'],['d','>'],['v','200']] },
+        body: [
+          { id: 'm1', cat: 'Motion', p: [['t',"Move robot's"],['d','Back axis'],['d','Forward'],['t','at speed'],['v','50']] },
+        ],
+        elseBody: [
+          { id: 'm2', cat: 'Motion', p: [['t','Rotate in'],['d','clockwise'],['t','the back axis of'],['d','Left'],['t','at speed'],['v','50'],['t','.']] },
+          { id: 'a1', cat: 'Variable', p: [['t','Add the variable'],['d','variable_1'],['t','by'],['v','1']] },
+        ] },
+    ] },
+];
+
+const DEBUG_TREE = [
+  { id: 'r1', cat: 'Control', c: true, p: [['t','Repeat'],['v','10'],['t','time(s)']], body: [
+      { id: 'i1', cat: 'Control', ifBlock: true,
+        p: [['g'],['t','if'],['cond'],['t','then']],
+        cond: { id: 'c1', cat: 'Sensing', hex: true,
+                p: [['t','If the'],['d','No.1'],['t','IR sensor value'],['d','>'],['v','200']] },
+        body: [
+          { id: 'm1', cat: 'Motion', p: [['t',"Move robot's"],['d','Back axis'],['d','Forward'],['t','at speed'],['v','50']] },
+        ],
+        elseBody: [
+          { id: 'm2', cat: 'Motion', p: [['t','Stop robot']] },
+        ] },
+      { id: 'bad1', bad: true, text: 'Wait until line sensor is Black',
+        why: {
+          en: 'R Block has no line-sensor block. The Ollo reads reflected light on an IR port.',
+          ms: 'R Block tiada blok line sensor. Ollo membaca cahaya pantulan pada port IR.',
+          zh: 'R Block 没有 line sensor 积木。Ollo 读的是红外端口的反射光。',
+        },
+        fixLabel: { en: 'Use instead', ms: 'Guna sebaliknya', zh: '改用' },
+        fix: 'If the [No.1] IR sensor value [>] [200]' },
+    ] },
+];
+
+/* Flatten a tree into reading order, skipping rejected blocks. */
+function flatten(nodes, out) {
+  out = out || [];
+  nodes.forEach(n => {
+    if (n.bad) return;
+    out.push(n.id);
+    if (n.cond) out.push(n.cond.id);
+    if (n.body) flatten(n.body, out);
+    if (n.elseBody) flatten(n.elseBody, out);
+  });
+  return out;
+}
+
+/* ============================================================================
+   BLOCK PRIMITIVES — R Block's visual grammar
+   ========================================================================== */
+
+/* Dropdown slot: light rounded-rect pill with a chevron, sitting in the block */
+function Pill({ v, c, dim }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      background: dim ? 'oklch(0.975 0.003 80)' : c.slot,
+      border: `1px solid ${dim ? C.hairSoft : c.slotEdge}`,
+      color: dim ? C.inkSoft : c.ink,
+      padding: '1px 6px 2px 7px', borderRadius: 6,
+      fontSize: 14, fontWeight: 600, lineHeight: 1.35, whiteSpace: 'nowrap',
+    }}>
+      {v}
+      <svg width="8" height="5" viewBox="0 0 8 5" style={{ opacity: 0.75, flexShrink: 0 }}>
+        <path d="M0.7 0.8 L4 4 L7.3 0.8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
+/* Value slot: white oval with a thin border */
+function Oval({ v, c, dim }) {
+  return (
+    <span style={{
+      display: 'inline-block',
+      background: dim ? 'transparent' : '#fff',
+      border: `1.5px solid ${dim ? C.hairSoft : c.slotEdge}`,
+      color: dim ? C.inkSoft : c.ink,
+      padding: '0px 9px 1px 9px', borderRadius: 999,
+      fontSize: 14, fontWeight: 700, lineHeight: 1.4, whiteSpace: 'nowrap',
+      fontVariantNumeric: 'tabular-nums',
+    }}>{v}</span>
+  );
+}
+
+/* The if-block's blue configuration gear */
+function Gear({ c }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}
+         fill="none" stroke={c.ink} strokeWidth="2">
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 2.6v3M12 18.4v3M2.6 12h3M18.4 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* Block content: fixed text plus inline slots, in reading order */
+function Parts({ p, c, dim, cond }) {
+  return p.map((seg, k) => {
+    const [kind, val] = seg;
+    if (kind === 'g') return <Gear key={k} c={c} />;
+    if (kind === 'cond') return <React.Fragment key={k}>{cond}</React.Fragment>;
+    if (kind === 'd') return <Pill key={k} v={val} c={c} dim={dim} />;
+    if (kind === 'v') return <Oval key={k} v={val} c={c} dim={dim} />;
+    return <span key={k} style={{
+      color: dim ? C.inkSoft : c.ink, fontSize: 14, fontWeight: 600, lineHeight: 1.4,
+      letterSpacing: -0.1,
+    }}>{val}</span>;
+  });
+}
+
+function CatTag({ name, c, dim }) {
+  return (
+    <span style={{
+      fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase',
+      color: dim ? C.inkFaint : c.ink, opacity: dim ? 1 : 0.55,
+      marginLeft: 'auto', paddingLeft: 6, flexShrink: 0, lineHeight: 1.4,
+    }}>{name}</span>
+  );
+}
+
+/* Hexagonal boolean block — pointed both ends, seated in the if socket */
+function Hex({ node, done, next, onTap, register, lang }) {
+  const c = CAT[node.cat];
+  const dim = done;
+  /* clip-path would swallow a box-shadow, so the near-black NEXT ring is drawn
+     as a second clipped layer behind the hexagon — the position marker must
+     survive on condition blocks too. */
+  const hex = 'polygon(9px 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 9px 100%, 0 50%)';
+  return (
+    <span
+      ref={el => register(node.id, el)}
+      data-block={node.id}
+      onClick={(e) => { e.stopPropagation(); onTap(node.id); }}
+      style={{
+        display: 'inline-block', maxWidth: '100%', minWidth: 0,
+        clipPath: hex, background: next ? C.ink : 'transparent',
+        padding: next ? 3 : 0, cursor: 'pointer', userSelect: 'none',
+        fontSize: 0, lineHeight: 0, verticalAlign: 'middle',
+      }}>
+      <span style={{
+        display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 5,
+        background: dim ? c.dim : c.fill, clipPath: hex,
+        padding: '5px 15px 6px 15px', maxWidth: '100%',
+      }}>
+        <Parts p={node.p} c={c} dim={dim} />
+        <CatTag name={node.cat} c={c} dim={dim} />
+      </span>
+    </span>
+  );
+}
+
+/* A statement block: solid rounded rect with a puzzle tab underneath */
+function Stmt({ node, done, next, onTap, register }) {
+  const c = CAT[node.cat];
+  const dim = done;
+  return (
+    <div style={{ position: 'relative' }}>
+      <div
+        ref={el => register(node.id, el)}
+        data-block={node.id}
+        onClick={() => onTap(node.id)}
+        style={{
+          background: dim ? c.dim : c.fill,
+          borderRadius: 9, padding: '6px 11px 7px 11px',
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5,
+          cursor: 'pointer', userSelect: 'none', position: 'relative', zIndex: 2,
+          boxShadow: next ? `0 0 0 2.5px ${C.ink}, 0 6px 18px oklch(0.640 0.155 52 / 0.22)` : 'none',
+        }}>
+        <Parts p={node.p} c={c} dim={dim} />
+        <CatTag name={node.cat} c={c} dim={dim} />
+      </div>
+      {/* interlocking tab */}
+      <div style={{
+        position: 'absolute', left: 16, bottom: -3, width: 15, height: 5,
+        background: dim ? c.dim : c.fill, borderRadius: '0 0 4px 4px', zIndex: 1,
+      }} />
+    </div>
+  );
+}
+
+/* Rejected block — red box, always fully expanded, never tappable */
+function BadBlock({ node, lang, t }) {
+  return (
+    <div style={{
+      background: C.dangerWash, border: `2px solid ${C.danger}`,
+      borderRadius: 10, padding: '7px 10px 8px 10px', margin: '2px 0',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase',
+          color: '#fff', background: C.danger, padding: '2px 7px', borderRadius: 5, flexShrink: 0,
+        }}>{t.notReal}</span>
+        <span style={{
+          fontSize: 14, fontWeight: 700, color: C.danger,
+          textDecoration: 'line-through', textDecorationThickness: 1.5, lineHeight: 1.35,
+        }}>{node.text}</span>
+      </div>
+      <div style={{ fontSize: 14, lineHeight: 1.4, color: 'oklch(0.360 0.075 30)', marginTop: 5 }}>
+        {node.why[lang]}
+      </div>
+      <div style={{
+        marginTop: 6, background: '#fff', border: `1px solid ${C.dangerEdge}`,
+        borderRadius: 8, padding: '5px 9px 6px 9px',
+        display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase', color: C.inkSoft, flexShrink: 0 }}>
+          {node.fixLabel[lang]}
+        </span>
+        <span style={{ fontFamily: MONO, fontSize: 14, color: C.ink, fontWeight: 600, lineHeight: 1.35 }}>
+          {node.fix}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* C-shaped wrapper: left spine + bottom arm physically enclose the body.
+   Nesting is containment, not indentation. */
+function CBlock({ node, ctx }) {
+  const c = CAT[node.cat];
+  const dim = ctx.done.has(node.id);
+  const next = ctx.next === node.id;
+  const hasElse = !!node.elseBody;
+  const condEl = node.cond
+    ? <Hex node={node.cond} done={ctx.done.has(node.cond.id)} next={ctx.next === node.cond.id}
+           onTap={ctx.onTap} register={ctx.register} lang={ctx.lang} />
+    : null;
+
+  const arm = (label) => (
+    <div style={{
+      padding: '6px 11px 6px 11px', display: 'flex', alignItems: 'center',
+      fontSize: 14, fontWeight: 700, color: dim ? C.inkSoft : c.ink, letterSpacing: -0.1,
+    }}>{label}</div>
+  );
+
+  return (
+    <div style={{ position: 'relative', marginBottom: 2 }}>
+      <div style={{
+        background: dim ? c.dim : c.fill, borderRadius: 10,
+        paddingBottom: 11, position: 'relative', zIndex: 2,
+      }}>
+        <div
+          ref={el => ctx.register(node.id, el)}
+          data-block={node.id}
+          onClick={() => ctx.onTap(node.id)}
+          style={{
+            padding: '6px 11px 7px 11px', borderRadius: 10,
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5,
+            cursor: 'pointer', userSelect: 'none',
+            boxShadow: next ? `0 0 0 2.5px ${C.ink}, 0 6px 18px oklch(0.640 0.155 52 / 0.22)` : 'none',
+          }}>
+          <Parts p={node.p} c={c} dim={dim} cond={condEl} />
+          <CatTag name={node.cat} c={c} dim={dim} />
+        </div>
+
+        {/* mouth 1 */}
+        <div style={{ marginLeft: 13, background: ctx.bg, padding: '2px 0 2px 4px' }}>
+          <Nodes list={node.body || []} ctx={ctx} />
+        </div>
+
+        {hasElse && <div style={{ paddingLeft: 0 }}>{arm('else')}</div>}
+        {hasElse && (
+          <div style={{ marginLeft: 13, background: ctx.bg, padding: '2px 0 2px 4px' }}>
+            <Nodes list={node.elseBody} ctx={ctx} />
+          </div>
+        )}
+      </div>
+      <div style={{
+        position: 'absolute', left: 16, bottom: -3, width: 15, height: 5,
+        background: dim ? c.dim : c.fill, borderRadius: '0 0 4px 4px', zIndex: 1,
+      }} />
+    </div>
+  );
+}
+
+function Nodes({ list, ctx }) {
+  return list.map(n => {
+    if (n.bad) return <BadBlock key={n.id} node={n} lang={ctx.lang} t={ctx.t} />;
+    if (n.c || n.ifBlock) return <CBlock key={n.id} node={n} ctx={ctx} />;
+    return (
+      <div key={n.id} style={{ marginBottom: 2 }}>
+        <Stmt node={n} done={ctx.done.has(n.id)} next={ctx.next === n.id}
+              onTap={ctx.onTap} register={ctx.register} />
+      </div>
+    );
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   BlockPanel — THE HERO.
+   The block column is pure R Block. The student's POSITION lives entirely in
+   the 34px gutter to its left: an amber rail filled behind them, a solid amber
+   TRIANGLE at the next block, hollow rings ahead. Nothing amber, and nothing
+   triangular, ever appears inside the block column — that is what keeps
+   position from colliding with the orange Variable category.
+   ------------------------------------------------------------------------- */
+function BlockPanel({ tree, done, onTap, next, lang, t, bg }) {
+  const wrapRef = useRef(null);
+  const rowRefs = useRef({});
+  const [marks, setMarks] = useState([]);
+  const order = useMemo(() => flatten(tree), [tree]);
+  const register = (id, el) => { rowRefs.current[id] = el; };
+
+  useLayoutEffect(() => {
+    const w = wrapRef.current;
+    if (!w) return;
+    const wr = w.getBoundingClientRect();
+    const m = [];
+    order.forEach(id => {
+      const el = rowRefs.current[id];
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      m.push({ id, y: Math.round(r.top - wr.top + Math.min(r.height, 34) / 2) });
+    });
+    const a = JSON.stringify(m), b = JSON.stringify(marks);
+    if (a !== b) setMarks(m);
+  });
+
+  const nextMark = marks.find(m => m.id === next);
+  const first = marks[0], last = marks[marks.length - 1];
+  const railTop = first ? first.y : 0;
+  const railBot = last ? last.y : 0;
+  const fillTo = nextMark ? nextMark.y : railBot;
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', padding: '2px 14px 2px 34px' }}>
+
+      {/* ---- POSITION GUTTER (outside the block column) ---- */}
+      {marks.length > 0 && (
+        <div style={{ position: 'absolute', left: 0, top: 0, width: 34, height: '100%', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', left: 15, top: railTop, height: Math.max(0, railBot - railTop), width: 2, background: C.hair, borderRadius: 2 }} />
+          <div style={{ position: 'absolute', left: 15, top: railTop, height: Math.max(0, fillTo - railTop), width: 2, background: C.accent, borderRadius: 2 }} />
+          {marks.map(m => {
+            const isDone = done.has(m.id);
+            const isNext = m.id === next;
+            if (isNext) {
+              return (
+                <div key={m.id} style={{ position: 'absolute', left: 6, top: m.y - 9 }}>
+                  <svg width="20" height="18" viewBox="0 0 20 18">
+                    <path d="M3 1.6 L17 9 L3 16.4 Z" fill={C.accent} stroke={C.accent} strokeWidth="2.4" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              );
+            }
+            if (isDone) {
+              return (
+                <div key={m.id} style={{
+                  position: 'absolute', left: 9, top: m.y - 7, width: 14, height: 14,
+                  borderRadius: 999, background: C.accent,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="9" height="9" viewBox="0 0 10 10">
+                    <path d="M1.6 5.2 L3.9 7.4 L8.4 2.6" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              );
+            }
+            return (
+              <div key={m.id} style={{
+                position: 'absolute', left: 11, top: m.y - 5, width: 10, height: 10,
+                borderRadius: 999, background: C.card, border: `2px solid ${C.hair}`,
+              }} />
+            );
+          })}
+          {nextMark && (
+            <div style={{
+              position: 'absolute', left: 0, top: nextMark.y - 26, width: 34,
+              fontSize: 12, fontWeight: 800, letterSpacing: 0.4, color: C.accentDeep,
+              textAlign: 'center', textTransform: 'uppercase',
+            }}>{lang === 'zh' ? '这' : 'now'}</div>
+          )}
+        </div>
+      )}
+
+      <Nodes list={tree} ctx={{ done, onTap, next, register, lang, t, bg }} />
+    </div>
+  );
+}
+
+/* Persistent transcribe-mode counter — never allowed to scroll away. */
+function ProgressHeader({ label, doneCount, total, lang, hint }) {
+  const t = T[lang];
+  const pct = Math.round((doneCount / total) * 100);
+  return (
+    <div style={{
+      position: 'sticky', top: 0, zIndex: 20,
+      background: 'oklch(0.995 0.002 90 / 0.95)', backdropFilter: 'blur(12px)',
+      borderBottom: `1px solid ${C.hair}`, padding: '8px 16px 8px 16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkMid }}>{label}</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 26, fontWeight: 250, letterSpacing: -1, color: C.accentDeep, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{doneCount}</span>
+        <span style={{ fontSize: 14, fontWeight: 400, color: C.inkSoft }}>/ {total} {t.placed}</span>
+      </div>
+      <div style={{ height: 4, background: C.hairSoft, borderRadius: 999, marginTop: 6, overflow: 'hidden' }}>
+        <div style={{ width: pct + '%', height: '100%', background: C.accent, borderRadius: 999, transition: 'width .2s ease' }} />
+      </div>
+      {hint && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 5, lineHeight: 1.3 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function LangPicker({ lang, setLang }) {
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {['en', 'ms', 'zh'].map(k => (
+        <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+          padding: '4px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
+          border: `1px solid ${k === lang ? C.accent : C.hair}`,
+          background: k === lang ? C.accentWash : 'transparent',
+          color: k === lang ? C.accentDeep : C.inkSoft,
+          fontSize: 12, fontWeight: k === lang ? 700 : 500,
+        }}>{T[k].code}</button>
+      ))}
+    </div>
+  );
+}
+
+function EngNote({ text }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{
+        fontFamily: MONO, fontSize: 12, fontWeight: 700, color: C.inkMid,
+        border: `1px solid ${C.hair}`, borderRadius: 4, padding: '0px 5px', flexShrink: 0,
+      }}>EN</div>
+      <div style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.4 }}>{text}</div>
+    </div>
+  );
+}
+
+function PhotoThumb({ size = 58 }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 10, flexShrink: 0,
+      background: 'repeating-linear-gradient(45deg, oklch(0.905 0.010 78) 0 6px, oklch(0.945 0.008 78) 6px 12px)',
+      border: `1px solid ${C.hair}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="oklch(0.560 0.014 62)" strokeWidth="1.6">
+        <rect x="3" y="5" width="18" height="14" rx="2.5" />
+        <circle cx="12" cy="12" r="3.2" />
+        <path d="M8 5l1.4-2h5.2L16 5" />
+      </svg>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 1 — Entry. The fork, sized to fill the screen: no dead space.
+   ========================================================================== */
+function ScreenEntry() {
+  const [lang, setLang] = useState('en');
+  const [mode, setMode] = useState('build');
+  const t = T[lang];
+
+  const Fork = ({ id, title, sub, active, glyph }) => (
+    <button data-mode={id} onClick={() => setMode(id)} style={{
+      width: '100%', flex: 1, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+      padding: '20px 18px', borderRadius: 22, marginBottom: 14,
+      border: `2px solid ${active ? C.accent : C.hair}`,
+      background: active ? C.accentWash : C.card,
+      boxShadow: active ? '0 10px 30px oklch(0.640 0.155 52 / 0.20)' : '0 1px 2px oklch(0.2 0 0 / 0.04)',
+      display: 'flex', alignItems: 'center', gap: 16, transition: 'all .16s',
+    }}>
+      <div style={{
+        width: 58, height: 58, borderRadius: 17, flexShrink: 0,
+        background: active ? C.accent : 'oklch(0.955 0.006 78)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>{glyph(active)}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 27, fontWeight: 600, letterSpacing: -0.5, color: active ? C.accentDeep : C.ink, lineHeight: 1.1 }}>{title}</div>
+        <div style={{ fontSize: 14.5, color: active ? 'oklch(0.480 0.075 50)' : C.inkSoft, marginTop: 4 }}>{sub}</div>
+      </div>
+    </button>
+  );
+
+  const buildGlyph = (a) => (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={a ? '#fff' : C.inkMid} strokeWidth="2" strokeLinecap="round">
+      <rect x="3.5" y="4" width="17" height="5" rx="1.6" />
+      <rect x="6.5" y="10" width="14" height="5" rx="1.6" />
+      <rect x="6.5" y="16" width="10" height="4.5" rx="1.6" />
+    </svg>
+  );
+  const debugGlyph = (a) => (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={a ? '#fff' : C.inkMid} strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="8.4" /><path d="M12 7.4v5.2" /><path d="M12 16.3h.01" />
+    </svg>
+  );
+
+  return (
+    <div style={{ background: C.appBg, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '18px 18px 0 18px' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: C.accentDeep }}>{t.greet}</div>
+        <div style={{ fontSize: 13, color: C.inkSoft, marginTop: 3 }}>{t.sub}</div>
+      </div>
+
+      <div style={{ padding: '18px 18px 0 18px' }}>
+        <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: -0.7, color: C.ink, lineHeight: 1.2 }}>{t.pick}</div>
+      </div>
+
+      <div style={{ padding: '16px 18px 0 18px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Fork id="build" title={t.build} sub={t.buildSub} active={mode === 'build'} glyph={buildGlyph} />
+        <Fork id="debug" title={t.debug} sub={t.debugSub} active={mode === 'debug'} glyph={debugGlyph} />
+      </div>
+
+      <div style={{ padding: '4px 18px 20px 18px' }}>
+        <div style={{ height: 1, background: C.hair, marginBottom: 14 }} />
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase', color: C.inkSoft, marginBottom: 8 }}>{t.lang}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['en', 'ms', 'zh'].map(k => {
+            const on = k === lang;
+            return (
+              <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+                flex: 1, padding: '11px 4px', borderRadius: 12, cursor: 'pointer',
+                border: `1.5px solid ${on ? C.accent : C.hair}`,
+                background: on ? C.accentWash : C.card,
+                color: on ? C.accentDeep : C.inkMid,
+                fontWeight: on ? 700 : 500, fontSize: 14,
+                fontFamily: 'inherit', transition: 'all .15s',
+              }}>{T[k].name}</button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 7, textAlign: 'center' }}>{t.langNote}</div>
+        <button style={{
+          width: '100%', marginTop: 14, padding: '16px', borderRadius: 15, border: 'none',
+          background: C.accent, color: '#fff', fontSize: 17, fontWeight: 650,
+          fontFamily: 'inherit', cursor: 'pointer', letterSpacing: -0.2,
+          boxShadow: '0 6px 18px oklch(0.640 0.155 52 / 0.30)',
+        }}>{mode === 'build' ? t.build : t.debug} →</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 2 — Ask, shown in the attached-photo state.
+   ========================================================================== */
+function ScreenAsk() {
+  const [lang, setLang] = useState('en');
+  const [photo, setPhoto] = useState(true);
+  const t = T[lang];
+  const text = {
+    en: 'My robot has to follow the black line then stop before it hits the wall. What blocks do I need?',
+    ms: 'Robot saya kena ikut garisan hitam kemudian berhenti sebelum langgar dinding. Blok apa yang saya perlukan?',
+    zh: '我的机器人要沿黑线走，撞到墙之前停下来。我需要哪些积木？',
+  }[lang];
+
+  return (
+    <div style={{ background: C.appBg, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        padding: '12px 16px', borderBottom: `1px solid ${C.hair}`, background: C.card,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <span style={{ fontSize: 20, color: C.inkSoft, lineHeight: 1 }}>‹</span>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.accentDeep, background: C.accentWash, padding: '3px 9px', borderRadius: 6,
+        }}>{t.askTitle}</span>
+        <span style={{ flex: 1 }} />
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <div style={{ padding: '22px 16px 0 16px', flex: 1 }}>
+        <div style={{ fontSize: 24, fontWeight: 300, letterSpacing: -0.6, color: C.ink, lineHeight: 1.25 }}>{t.askQ}</div>
+
+        <div style={{
+          marginTop: 16, background: C.card, border: `1px solid ${C.hair}`,
+          borderRadius: 16, padding: '14px 14px 12px 14px',
+          boxShadow: '0 2px 10px oklch(0.2 0 0 / 0.035)',
+        }}>
+          <div style={{ fontSize: 15.5, lineHeight: 1.55, color: C.ink, minHeight: 92 }}>
+            {text}<span style={{ display: 'inline-block', width: 2, height: 17, background: C.accent, verticalAlign: -3, marginLeft: 1 }} />
+          </div>
+          <div style={{ height: 1, background: C.hairSoft, margin: '10px -14px 10px -14px' }} />
+
+          {photo ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <PhotoThumb />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>{t.attached}</div>
+                <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>course-layout.jpg · 1.4 MB</div>
+              </div>
+              <button data-photo="off" onClick={() => setPhoto(false)} style={{
+                border: `1px solid ${C.hair}`, background: 'transparent', color: C.inkMid,
+                fontSize: 13, fontWeight: 600, padding: '6px 11px', borderRadius: 9,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>{t.remove}</button>
+            </div>
+          ) : (
+            <button data-photo="on" onClick={() => setPhoto(true)} style={{
+              display: 'flex', alignItems: 'center', gap: 11, width: '100%',
+              border: `1.5px dashed ${C.hair}`, background: 'transparent',
+              borderRadius: 12, padding: '11px 12px', cursor: 'pointer',
+              fontFamily: 'inherit', textAlign: 'left',
+            }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 9, background: 'oklch(0.955 0.006 78)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.inkMid} strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 6v12M6 12h12" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>{t.addPhoto}</div>
+                <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 1 }}>{t.photoHint}</div>
+              </div>
+            </button>
+          )}
+        </div>
+
+        <div style={{
+          marginTop: 14, background: 'oklch(0.972 0.006 80)', border: `1px solid ${C.hairSoft}`,
+          borderRadius: 12, padding: '10px 12px',
+        }}>
+          <EngNote text={t.engNote} />
+        </div>
+      </div>
+
+      <div style={{ padding: '0 16px 22px 16px' }}>
+        <button style={{
+          width: '100%', padding: '16px', borderRadius: 15, border: 'none',
+          background: C.accent, color: '#fff', fontSize: 17, fontWeight: 650,
+          fontFamily: 'inherit', cursor: 'pointer',
+          boxShadow: '0 6px 18px oklch(0.640 0.155 52 / 0.30)',
+        }}>{t.go} →</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 3 — Working / queue.
+   ========================================================================== */
+function ScreenQueue() {
+  const [lang, setLang] = useState('zh');
+  const [stage, setStage] = useState(2);
+  const t = T[lang];
+
+  return (
+    <div style={{ background: C.appBg, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        padding: '12px 16px', borderBottom: `1px solid ${C.hair}`, background: C.card,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkMid }}>{t.queueTitle}</span>
+        <span style={{ flex: 1 }} />
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <div style={{ padding: '26px 18px 0 18px', flex: 1 }}>
+        <div style={{
+          background: C.card, border: `1px solid ${C.hair}`, borderRadius: 20,
+          padding: '20px 18px', boxShadow: '0 2px 12px oklch(0.2 0 0 / 0.04)',
+        }}>
+          <div style={{ fontSize: 13, color: C.inkSoft, letterSpacing: 0.2 }}>{t.inQueue}</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginTop: 8 }}>
+            <div>
+              <div style={{ fontSize: 62, fontWeight: 200, letterSpacing: -3, color: C.accent, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums' }}>2</div>
+              <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 6 }}>{t.position}</div>
+            </div>
+            <div style={{ flex: 1, paddingBottom: 6 }}>
+              <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div key={i} style={{
+                    flex: 1, height: 30, borderRadius: 7,
+                    background: i < 1 ? C.accent : (i === 1 ? C.accentEdge : 'oklch(0.945 0.005 74)'),
+                  }} />
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: C.inkSoft }}>1 {t.ahead}</div>
+            </div>
+          </div>
+
+          <div style={{ height: 1, background: C.hairSoft, margin: '18px -18px 16px -18px' }} />
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 13, color: C.inkSoft }}>{t.est}</span>
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 30, fontWeight: 250, letterSpacing: -1, color: C.ink, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>18–26</span>
+            <span style={{ fontSize: 14, color: C.inkSoft }}>s</span>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 24 }}>
+          {t.stages.map((s, i) => {
+            const isDone = i < stage;
+            const isNow = i === stage;
+            return (
+              <div key={i} data-stage={i} onClick={() => setStage(i)} style={{ display: 'flex', gap: 12, cursor: 'pointer' }}>
+                <div style={{ width: 20, position: 'relative', flexShrink: 0 }}>
+                  {i < t.stages.length - 1 && (
+                    <div style={{ position: 'absolute', left: 9, top: 18, bottom: -4, width: 2, background: isDone ? C.accent : C.hair }} />
+                  )}
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 999, marginTop: 4, position: 'relative', zIndex: 2,
+                    background: isDone ? C.accent : C.card,
+                    border: `2px solid ${isDone || isNow ? C.accent : C.hair}`,
+                    boxShadow: isNow ? `0 0 0 5px ${C.accentWash}` : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {isDone && (
+                      <svg width="10" height="10" viewBox="0 0 10 10">
+                        <path d="M1.6 5.2 L3.9 7.4 L8.4 2.6" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                    {isNow && <div style={{ width: 7, height: 7, borderRadius: 999, background: C.accent }} />}
+                  </div>
+                </div>
+                <div style={{ paddingBottom: 18, flex: 1 }}>
+                  <div style={{
+                    fontSize: 15, lineHeight: 1.35, marginTop: 4,
+                    color: isNow ? C.ink : (isDone ? C.inkMid : C.inkFaint),
+                    fontWeight: isNow ? 650 : 450,
+                  }}>{s}</div>
+                  {isNow && <div style={{ fontSize: 12, color: C.accentDeep, marginTop: 3 }}>···</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ padding: '0 18px 22px 18px' }}>
+        <div style={{
+          background: 'oklch(0.972 0.006 80)', border: `1px solid ${C.hairSoft}`,
+          borderRadius: 12, padding: '12px 14px', fontSize: 14, color: C.inkMid, lineHeight: 1.5,
+        }}>{t.keep}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 4 — Answer, Build. The block panel is the hero.
+   ========================================================================== */
+function ScreenBuild() {
+  const [lang, setLang] = useState('en');
+  const [done, setDone] = useState(new Set(['v1', 'f1', 'i1']));
+  const t = T[lang];
+  const order = useMemo(() => flatten(BUILD_TREE), []);
+  const toggle = (id) => setDone(prev => {
+    const n = new Set(prev);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  });
+  const next = useMemo(() => order.find(id => !done.has(id)) || null, [done, order]);
+
+  const summary = {
+    en: 'Drive forward while IR sensor No.1 sees the line; rotate back when it does not.',
+    ms: 'Gerak ke hadapan selagi sensor IR No.1 nampak garisan; pusing balik jika tidak.',
+    zh: '一直循环：No.1 红外传感器看得到线就前进，丢线就转回线上并记一次。',
+  }[lang];
+  const note = {
+    en: '200 is R Block’s default threshold — lower it on a shiny floor.',
+    ms: '200 ialah ambang lalai R Block — turunkan di lantai berkilat.',
+    zh: '200 是 R Block 的默认阈值 —— 地面反光时调低。',
+  }[lang];
+
+  return (
+    <div style={{ background: C.card, minHeight: '100%' }}>
+      <div style={{ padding: '10px 16px 6px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.accentDeep, background: C.accentWash, padding: '3px 9px', borderRadius: 6,
+        }}>{t.build}</span>
+        <span style={{ flex: 1 }} />
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <div style={{ padding: '0 16px 7px 16px' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase', color: C.inkSoft, marginBottom: 2 }}>{t.summary}</div>
+        <div style={{ fontSize: 14.5, lineHeight: 1.42, color: C.ink }}>{summary}</div>
+      </div>
+
+      <ProgressHeader label={t.program} doneCount={done.size} total={order.length} lang={lang} hint={t.tapHint} />
+      <div style={{ height: 6 }} />
+
+      <BlockPanel tree={BUILD_TREE} done={done} onTap={toggle} next={next} lang={lang} t={t} bg={C.card} />
+
+      <div style={{ padding: '8px 16px 18px 16px' }}>
+        {!next && (
+          <div style={{
+            background: C.doneWash, border: `1px solid oklch(0.870 0.045 155)`, borderRadius: 12,
+            padding: '10px 13px', fontSize: 14, fontWeight: 650, color: C.done, marginBottom: 10,
+          }}>✓ {t.allDone}</div>
+        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkFaint, marginTop: 2, flexShrink: 0 }}>{t.note}</div>
+          <div style={{ fontSize: 14, color: C.inkMid, lineHeight: 1.45 }}>{note}</div>
+        </div>
+        <div style={{ marginTop: 9, borderTop: `1px solid ${C.hairSoft}`, paddingTop: 8 }}>
+          <EngNote text={t.engNote} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 5 — Answer, Debug. Bahasa Malaysia interface, English block names,
+   the "what was wrong" region, and one rejected block name in red — fully
+   expanded, never clipped.
+   ========================================================================== */
+function ScreenDebug() {
+  const [lang, setLang] = useState('ms');
+  const [done, setDone] = useState(new Set(['r1']));
+  const t = T[lang];
+  const order = useMemo(() => flatten(DEBUG_TREE), []);
+  const toggle = (id) => setDone(prev => {
+    const n = new Set(prev);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  });
+  const next = useMemo(() => order.find(id => !done.has(id)) || null, [done, order]);
+
+  const wrong = {
+    en: 'The sensor test sat outside Repeat, so it ran once and never again.',
+    ms: 'Ujian sensor berada di luar Repeat — ia berjalan sekali sahaja.',
+    zh: '传感器判断写在 Repeat 外面，只跑了一次。',
+  }[lang];
+  const fix = {
+    en: 'Move the if-block inside Repeat so the sensor is re-read every pass.',
+    ms: 'Pindahkan blok if ke dalam Repeat.',
+    zh: '把 if 积木移到 Repeat 里面，让传感器每轮都重新读取。',
+  }[lang];
+
+  return (
+    <div style={{ background: C.card, minHeight: '100%' }}>
+      <div style={{ padding: '10px 16px 6px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{
+          fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.danger, background: C.dangerWash, padding: '3px 9px', borderRadius: 6,
+        }}>{t.debug}</span>
+        <span style={{ flex: 1 }} />
+        <LangPicker lang={lang} setLang={setLang} />
+      </div>
+
+      <div style={{ padding: '0 16px 8px 16px' }}>
+        <div style={{
+          background: C.dangerWash, border: `1px solid ${C.dangerEdge}`, borderRadius: 13,
+          padding: '7px 12px 8px 12px',
+        }}>
+          <div style={{ fontSize: 14, lineHeight: 1.42, color: 'oklch(0.330 0.075 30)' }}>
+            <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase', color: C.danger, marginRight: 7 }}>{t.wrong}</span>
+            {wrong}
+          </div>
+          <div style={{ height: 1, background: C.dangerEdge, margin: '7px -12px 6px -12px' }} />
+          <div style={{ fontSize: 14, lineHeight: 1.42, color: C.ink, fontWeight: 600 }}>{fix}</div>
+        </div>
+      </div>
+
+      <ProgressHeader label={t.program} doneCount={done.size} total={order.length} lang={lang} hint={t.tapHint} />
+      <div style={{ height: 4 }} />
+
+      <BlockPanel tree={DEBUG_TREE} done={done} onTap={toggle} next={next} lang={lang} t={t} bg={C.card} />
+
+      <div style={{ padding: '12px 16px 24px 16px', borderTop: `1px solid ${C.hairSoft}`, marginTop: 10 }}>
+        <EngNote text={t.engNote} />
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   Presentation surface
+   ========================================================================== */
+/* All five phones are shown at once on one presentation surface. The device is
+   still a true 393x852 iPhone — the whole tile is optically scaled so that the
+   full set fits a 1600x1100 sheet without any screen being cut off. */
+const S = 0.70;
+const FRAME_W = 393 + 24, FRAME_H = 852 + 24;
+
+function Phone({ caption, children, battery = 78, time = '9:41' }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: Math.round(FRAME_W * S) }}>
+      <div style={{
+        fontStyle: 'italic', fontSize: 13.5, color: 'oklch(0.420 0.020 62)',
+        marginBottom: 10, textAlign: 'center', lineHeight: 1.35, minHeight: 54,
+      }}>{caption}</div>
+      <div style={{ width: FRAME_W * S, height: FRAME_H * S }}>
+        <div style={{ transform: `scale(${S})`, transformOrigin: 'top left', width: FRAME_W, height: FRAME_H }}>
+          <IosFrame time={time} battery={battery}>{children}</IosFrame>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <div style={{
+      padding: '30px 20px 34px 20px', minHeight: '100vh',
+      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+    }}>
+      <div style={{ maxWidth: 1520, margin: '0 auto 22px auto', display: 'flex', alignItems: 'flex-end', gap: 48, width: '100%' }}>
+        <div style={{ flexShrink: 0 }}>
+        <div style={{
+          fontSize: 11.5, fontWeight: 800, letterSpacing: 2.4, textTransform: 'uppercase',
+          color: 'oklch(0.470 0.135 48)',
+        }}>Approved direction v2 · Kitchen Stories transfer, R Block grammar</div>
+        <div style={{
+          fontSize: 44, fontWeight: 250, letterSpacing: -1.5, marginTop: 8,
+          color: 'oklch(0.245 0.015 60)', lineHeight: 1.05,
+        }}>R Block Coding Buddy</div>
+        </div>
+        <div style={{
+          fontSize: 15, color: 'oklch(0.455 0.014 60)',
+          maxWidth: 700, lineHeight: 1.5, paddingBottom: 4,
+        }}>
+          Kitchen Stories' cooking mode — a step counter that never scrolls away and every
+          ingredient repeated inside the step that needs it — becomes a <strong style={{ fontWeight: 650 }}>transcribe
+          mode</strong>. The blocks are now drawn in R Block's own grammar: C-shaped wrappers that
+          enclose what they loop over, dropdown pills, oval values and hexagonal conditions, so
+          transcription becomes recognition. The student's position never enters that colour
+          contest — it lives in the amber gutter to the left, as a triangle no block can imitate.
+        </div>
+      </div>
+      <div style={{ height: 1, background: 'oklch(0.885 0.010 74)', maxWidth: 1520, margin: '0 auto 20px auto', width: '100%' }} />
+
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center',
+        maxWidth: 1560, margin: '0 auto', alignItems: 'flex-end',
+      }}>
+        <Phone caption="1 · Entry — the fork, not a menu. Tap Build/Debug, tap a language." time="9:41" battery={78}>
+          <ScreenEntry />
+        </Phone>
+        <Phone caption="2 · Ask — shown in the photo-attached state. Tap Remove for the empty state." time="9:42" battery={77}>
+          <ScreenAsk />
+        </Phone>
+        <Phone caption="3 · Working — queue position and an honest range, in 中文. Tap a stage." time="9:42" battery={77}>
+          <ScreenQueue />
+        </Phone>
+        <Phone caption="4 · Answer, Build — the hero. Tap any block to mark it placed." time="9:43" battery={75}>
+          <ScreenBuild />
+        </Phone>
+        <Phone caption="5 · Answer, Debug — Bahasa Malaysia interface, English block names, one invented block rejected in red." time="9:51" battery={71}>
+          <ScreenDebug />
+        </Phone>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

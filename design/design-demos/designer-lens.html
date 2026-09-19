@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>R Block Coding Buddy — Designer Lens</title>
+
+<!--
+================================================================================
+DESIGNER LENS — WHO I CHANNELLED, AND WHY
+
+CHOSEN: Erik Spiekermann / MetaDesign — specifically the transit-and-signage
+practice behind the Berlin BVG system, the Deutsche Bahn typographic programme,
+and the Düsseldorf Airport wayfinding.
+
+WHY HIM AND NOT THE OTHERS, FOR THIS AUDIENCE AND THIS PROBLEM:
+
+  Vignelli would have given us a beautiful diagram of the program. But Vignelli
+  optimises the OVERVIEW — the map you consult before you travel. Our student is
+  not consulting an overview; they are mid-journey, one hand on a robot, and the
+  only question they have is "which line am I on now, and how much is left".
+  That is not map-making. That is SIGNAGE.
+
+  Tufte optimises for density and comparison across a data set. There is no data
+  set here — there is one sequence of nine instructions. Density is the enemy;
+  a 12-year-old in a noisy hall re-reading a compressed line loses their place.
+
+  Hara/MUJI's restraint is genuinely close, and I have borrowed the discipline of
+  subtraction from it. But MUJI restraint is contemplative — it assumes a calm
+  user with time. Our user is neither calm nor has time.
+
+  Spiekermann's whole career is the exact problem: a person under time pressure,
+  in bad light, at speed, in a noisy public place, needs to know WHERE THEY ARE
+  in a structured route and WHAT COMES NEXT — and the type has to survive being
+  read badly. He treats legibility as an ethical obligation to the traveller, not
+  as taste. Replace "traveller" with "10-year-old at a competition bench" and the
+  brief is unchanged. He is also the one designer here who works natively in
+  MIXED-LANGUAGE systems (DB signage carries fixed untranslatable station names
+  inside translated chrome) — which is precisely our hard constraint that block
+  names must stay English inside a Malay or Chinese interface.
+
+HIS PRINCIPLES → MY DECISIONS:
+
+  1. "Signage answers one question at a time."
+     → Every screen has exactly one decision on it. The Entry screen is a fork of
+       two full-width targets, not a menu. The Ask screen is one field. Nothing
+       competes with the primary act.
+
+  2. "A route is understood by position, not by picture."
+     → THE HERO: the block program is drawn as a LINE DIAGRAM with stations. A
+       continuous rail runs down the left; every block is a station dot on it;
+       nesting is drawn as a real branch line that departs the trunk and rejoins
+       it. Depth is not indentation-as-whitespace, it is a physically visible
+       branch you can trace with a finger. Tapping a station fills it in, and the
+       YOU ARE HERE marker walks itself to the next unbuilt station. The counter
+       at the top ("BLOCK 4 OF 9") is the platform indicator.
+
+  3. "Type is a service, not decoration. Set it big and set it once."
+     → One family, three sizes, three weights, full stop. Block text is 16.5px
+       at weight 600 with generous leading — deliberately larger than the UI
+       chrome around it, because the block text is the thing being copied by
+       hand. Chrome is subordinate to content, always. No text below 12.5px.
+
+  4. "Distinguish what the reader must ACT on from what merely informs."
+     → Inline slots (dropdown choices and typed values) are drawn as physical
+       fields — a chevron pill for a dropdown, a bordered numeric cell for a
+       typed value — because those are the two things a student must go and
+       change in the robot's app. Fixed block text is not a field and never
+       looks like one.
+
+  5. "Signage never lies to the traveller about the wait."
+     → The queue screen states position and a range in seconds, and shows the
+       queue as the same rail motif — you are a station on a line too. Honest
+       arithmetic, no indeterminate spinner.
+
+  6. "The name of the place does not get translated."
+     → Chinese and Malay chrome, English block names, and an explicit standing
+       note that says so — turning the constraint into a stated rule rather than
+       an apparent bug. This is DB station-name practice, applied literally.
+
+DEGRADED / NOT DONE: no real photo (spec forbids stock imagery — the attachment
+is an honest grey plate); typeface is a system grotesque rather than FF Meta.
+================================================================================
+-->
+
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+/*
+  ── COLOUR DERIVATION (oklch) ────────────────────────────────────────────────
+  Not a palette. Derived from the content's own logic, which contains exactly
+  three states and nothing else:
+
+    (a) INSTRUCTION      — everything that must be read. Neutral ink on paper.
+    (b) POSITION         — where the student currently is on the path. ONE hue.
+    (c) FAILURE          — a block name that did not validate. ONE hue, reserved.
+
+  (b) is ochre/amber oklch(0.72 0.15 78). Chosen because in every physical
+  wayfinding system in the world, the "you are here / attend to this now"
+  marker is a warm high-luminance signal — it is the brightest thing in the
+  field without being an alarm. It is legible in bad light and survives on a
+  sun-washed phone screen at arm's length.
+
+  (c) is red oklch(0.55 0.20 27), used for ONE thing and one thing only: an
+  invalid block name. If red appeared anywhere else it would stop meaning
+  "wrong". Scarcity is what makes it work.
+
+  Large fields are near-zero chroma: paper oklch(0.98 0.006 85) (a warm white,
+  because a pure white phone panel at full brightness in a bright hall is
+  fatiguing), ink oklch(0.24 0.015 255) (not black — a hair of blue keeps it
+  from vibrating against the warm paper).
+
+  ── THE CATEGORY-COLOUR DECISION (deliberate, and a refusal) ─────────────────
+  R Block has 8 categories: Control, Motion, Sensing, Variable, Calculation,
+  Function, Screen, Sound. Colour-coding them would be the obvious move and it
+  is WRONG here, for three reasons:
+    1. Eight hues at high chroma is more colour than the "you are here" marker
+       can compete with. The single most important signal on the screen would
+       lose to decoration. Wayfinding rule: colour is a scarce channel; spend it
+       on navigation, not on classification.
+    2. The category is not information the student navigates BY — it is a lookup
+       key telling them which tab to open in the robot's app. A word does that
+       perfectly and unambiguously. A colour requires a legend they must learn.
+    3. 8% of boys have colour-vision deficiency, and this is a robotics club.
+  So categories are set as TYPE: small, uppercase, letterspaced, monochrome —
+  the same way a platform sign names a line without needing to be that colour.
+*/
+:root{
+  --ink:        oklch(0.24 0.015 255);
+  --ink-2:      oklch(0.45 0.012 255);
+  --ink-3:      oklch(0.60 0.010 255);
+  --rule:       oklch(0.88 0.006 255);
+  --rule-soft:  oklch(0.93 0.005 255);
+  --paper:      oklch(0.985 0.006 85);
+  --paper-2:    oklch(0.955 0.008 85);
+  --mark:       oklch(0.72 0.15 78);
+  --mark-deep:  oklch(0.52 0.12 72);
+  --mark-wash:  oklch(0.955 0.045 82);
+  --bad:        oklch(0.55 0.20 27);
+  --bad-wash:   oklch(0.955 0.035 27);
+  --stage:      oklch(0.255 0.014 258);
+  --stage-2:    oklch(0.33 0.014 258);
+  --stage-tx:   oklch(0.80 0.010 258);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background: var(--stage);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.stage-head{ padding: 26px 40px 0; max-width: 1520px; }
+.kicker{
+  font-size:11.5px; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+  color: var(--mark); margin:0 0 7px;
+}
+.stage-title{
+  font-size:27px; font-weight:700; letter-spacing:-.02em; color:#fff; margin:0 0 7px;
+}
+.stage-sub{
+  font-size:13.5px; line-height:1.55; color:var(--stage-tx); margin:0; max-width:1180px;
+}
+.stage-sub b{ color:#fff; font-weight:600; }
+
+/* The deck is scaled to present all five phones inside the 1600×1000 frame.
+   Scaling, not cropping — a presentation surface has to show the whole route. */
+.rail-deck{
+  display:flex; flex-wrap:wrap; gap:22px 16px;
+  padding: 18px 36px 32px; align-items:flex-start;
+}
+.phone-slot{ display:flex; flex-direction:column; gap:9px; width:278px; }
+.caption{
+  font-style: italic; font-size:12.5px; color:var(--stage-tx);
+  line-height:1.42; min-height:72px;
+}
+.caption b{ font-style:normal; font-weight:700; color:#fff; letter-spacing:.05em;
+  font-size:10.5px; text-transform:uppercase; margin-right:7px; }
+.phone-box{ width:278px; height:585px; }
+.phone-scale{ transform: scale(.665); transform-origin: top left; width:417px; }
+button{ font-family:inherit; }
+::-webkit-scrollbar{ width:0; height:0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+/* ═══════════════════════════════════════════════════════════════
+   IosFrame — verbatim from assets/ios_frame.jsx
+   ═══════════════════════════════════════════════════════════════ */
+const iosFrameStyles = {
+  wrapper: {
+    display: 'inline-block',
+    padding: 12,
+    background: '#000',
+    borderRadius: 60,
+    boxShadow: '0 0 0 2px #1f2937, 0 20px 60px rgba(0,0,0,0.3)',
+    position: 'relative',
+  },
+  screen: {
+    position: 'relative',
+    borderRadius: 48,
+    overflow: 'hidden',
+    background: '#fff',
+  },
+  statusBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 54,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 32px 0 32px',
+    fontSize: 16,
+    fontWeight: 600,
+    fontFamily: '-apple-system, "SF Pro Text", sans-serif',
+    zIndex: 20,
+    pointerEvents: 'none',
+  },
+  dynamicIsland: {
+    position: 'absolute',
+    top: 12,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 124,
+    height: 36,
+    background: '#000',
+    borderRadius: 999,
+    zIndex: 30,
+  },
+  statusIcons: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  signalIcon: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: 2,
+    height: 12,
+  },
+  signalBar: {
+    width: 3,
+    background: 'currentColor',
+    borderRadius: 1,
+  },
+  wifiIcon: {
+    width: 16,
+    height: 12,
+    position: 'relative',
+  },
+  batteryIcon: {
+    width: 26,
+    height: 12,
+    border: '1.5px solid currentColor',
+    borderRadius: 3,
+    padding: 1,
+    position: 'relative',
+    opacity: 0.8,
+  },
+  batteryCap: {
+    position: 'absolute',
+    top: 3,
+    right: -3,
+    width: 2,
+    height: 6,
+    background: 'currentColor',
+    borderRadius: '0 1px 1px 0',
+  },
+  content: {
+    position: 'absolute',
+    top: 54,
+    left: 0,
+    right: 0,
+    bottom: 34,
+    overflow: 'auto',
+  },
+  homeIndicator: {
+    position: 'absolute',
+    bottom: 10,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 140,
+    height: 5,
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: 999,
+    zIndex: 10,
+  },
+  homeIndicatorDark: {
+    background: 'rgba(255,255,255,0.5)',
+  },
+};
+
+function IosFrame({
+  children,
+  width = 393,
+  height = 852,
+  time = '9:41',
+  battery = 100,
+  darkMode = false,
+  showStatusBar = true,
+  showDynamicIsland = true,
+  showHomeIndicator = true,
+}) {
+  const textColor = darkMode ? '#fff' : '#000';
+
+  return (
+    <div style={iosFrameStyles.wrapper}>
+      <div style={{
+        ...iosFrameStyles.screen,
+        width,
+        height,
+        background: darkMode ? '#000' : '#fff',
+      }}>
+        {showStatusBar && (
+          <div style={{ ...iosFrameStyles.statusBar, color: textColor }}>
+            <span>{time}</span>
+            <div style={iosFrameStyles.statusIcons}>
+              <div style={iosFrameStyles.signalIcon}>
+                <div style={{ ...iosFrameStyles.signalBar, height: 4 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 6 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 9 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 11 }} />
+              </div>
+              <svg width="16" height="12" viewBox="0 0 16 12" fill="none" style={{ color: textColor }}>
+                <path d="M8 11.5a1 1 0 100-2 1 1 0 000 2z" fill="currentColor" />
+                <path d="M3 7.5a7 7 0 0110 0" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+                <path d="M1 4.5a11 11 0 0114 0" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.7" />
+              </svg>
+              <div style={iosFrameStyles.batteryIcon}>
+                <div style={{
+                  width: `${battery}%`,
+                  height: '100%',
+                  background: 'currentColor',
+                  borderRadius: 1,
+                  opacity: 0.9,
+                }} />
+                <div style={iosFrameStyles.batteryCap} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showDynamicIsland && <div style={iosFrameStyles.dynamicIsland} />}
+
+        <div style={iosFrameStyles.content}>
+          {children}
+        </div>
+
+        {showHomeIndicator && (
+          <div style={{
+            ...iosFrameStyles.homeIndicator,
+            ...(darkMode ? iosFrameStyles.homeIndicatorDark : {}),
+          }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LANGUAGE — chrome translates, block names never do.
+   ═══════════════════════════════════════════════════════════════ */
+const LANGS = [
+  { id:'en', label:'English',          short:'EN' },
+  { id:'ms', label:'Bahasa Malaysia',  short:'BM' },
+  { id:'zh', label:'中文',              short:'中'  },
+];
+
+const T = {
+  en: {
+    greet:'What do you need?',
+    build:'Build', buildSub:'Write me a program',
+    debug:'Debug', debugSub:"Mine doesn't work",
+    langLabel:'Language',
+    langNote:'Remembered on this device. Block names always stay in English.',
+    askTitle:'Build', askQ:'Describe what the robot should do.',
+    placeholder:'e.g. follow the black line and stop at the wall',
+    addPhoto:'Add a photo of the course or robot',
+    photoAttached:'Photo attached',
+    remove:'Remove',
+    photoHint:'Course layout — 1 image',
+    send:'Ask',
+    waitTitle:'Working on your answer',
+    inQueue:'You are 3rd in the queue',
+    est:'About 18–24 seconds left',
+    honest:'Two students are ahead of you. Nothing is stuck — you can keep building while you wait.',
+    ahead:'ahead of you', you:'YOU', after:'behind you',
+    summary:'Summary', blocks:'Blocks to place', note:'Note',
+    progress:'BLOCK', of:'OF', done:'placed',
+    tapHint:'Tap each line as you place it in R+.',
+    hereLabel:'YOU ARE HERE',
+    engNote:'Block names are shown in English because the R+ app only recognises English.',
+    wrong:'What was wrong',
+    invalid:'Not a real R Block name',
+    allDone:'All blocks placed. Run it.',
+  },
+  ms: {
+    greet:'Apa yang anda perlukan?',
+    build:'Bina', buildSub:'Tuliskan program untuk saya',
+    debug:'Nyahpepijat', debugSub:'Program saya tidak berfungsi',
+    langLabel:'Bahasa',
+    langNote:'Diingati pada peranti ini. Nama blok sentiasa kekal dalam Bahasa Inggeris.',
+    askTitle:'Bina', askQ:'Terangkan apa yang robot patut buat.',
+    placeholder:'cth. ikut garisan hitam dan berhenti di dinding',
+    addPhoto:'Tambah foto litar atau robot',
+    photoAttached:'Foto dilampirkan',
+    remove:'Buang',
+    photoHint:'Susun atur litar — 1 imej',
+    send:'Tanya',
+    waitTitle:'Sedang menyediakan jawapan',
+    inQueue:'Anda ke-3 dalam barisan',
+    est:'Kira-kira 18–24 saat lagi',
+    honest:'Dua pelajar di hadapan anda. Tiada apa yang tersekat.',
+    ahead:'di hadapan', you:'ANDA', after:'di belakang',
+    summary:'Ringkasan', blocks:'Blok untuk diletak', note:'Nota',
+    progress:'BLOK', of:'DARIPADA', done:'selesai',
+    tapHint:'Ketik setiap baris apabila anda meletakkannya.',
+    hereLabel:'ANDA DI SINI',
+    engNote:'Nama blok dipaparkan dalam Bahasa Inggeris kerana aplikasi R+ hanya mengenalinya begitu.',
+    wrong:'Apa yang salah',
+    invalid:'Bukan nama blok R Block yang sah',
+    allDone:'Semua blok siap diletak.',
+  },
+  zh: {
+    greet:'你需要什么帮助？',
+    build:'编写', buildSub:'帮我写一个程序',
+    debug:'排错', debugSub:'我的程序跑不起来',
+    langLabel:'语言',
+    langNote:'本设备已记住。积木名称始终保持英文。',
+    askTitle:'编写', askQ:'描述机器人要做什么。',
+    placeholder:'例如：沿黑线行走，碰到墙就停',
+    addPhoto:'添加赛道或机器人照片',
+    photoAttached:'已附照片',
+    remove:'移除',
+    photoHint:'赛道布局 — 1 张',
+    send:'提问',
+    waitTitle:'正在生成答案',
+    inQueue:'你排在第 3 位',
+    est:'大约还需 18–24 秒',
+    honest:'前面还有两位同学。程序没有卡住。',
+    ahead:'在你前面', you:'你', after:'在你后面',
+    summary:'一句话说明', blocks:'要放置的积木', note:'提示',
+    progress:'第', of:'块 / 共', done:'已放置',
+    tapHint:'每放好一块就点一下这一行。',
+    hereLabel:'当前位置',
+    engNote:'积木名称保持英文显示，因为 R+ 应用只识别英文。',
+    wrong:'问题出在哪里',
+    invalid:'这不是真实存在的积木名称',
+    allDone:'全部积木已放置完成。',
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCK DATA — real R Block syntax only.
+   d = branch depth. tokens: plain text | dd (dropdown) | val (typed value)
+   ═══════════════════════════════════════════════════════════════ */
+const t  = v => ({k:'t',  v});
+const dd = v => ({k:'dd', v});
+const vl = v => ({k:'vl', v});
+
+const BUILD_BLOCKS = [
+  { id:'b1', cat:'Control',  d:0, tk:[t('Start Program')] },
+  { id:'b2', cat:'Control',  d:0, tk:[t('Repeat '), vl('200'), t(' time(s)')] },
+  { id:'b3', cat:'Sensing',  d:1, tk:[t('If the '), dd('Left'), t(' IR sensor value '), dd('>'), t(' '), vl('50')] },
+  { id:'b4', cat:'Motion',   d:2, tk:[t("Move robot's "), dd('Right wheel'), t(' '), dd('Forward'), t(' at speed '), vl('500')] },
+  { id:'b5', cat:'Control',  d:1, tk:[t('Else')] },
+  { id:'b6', cat:'Motion',   d:2, tk:[t("Move robot's "), dd('Left wheel'), t(' '), dd('Forward'), t(' at speed '), vl('500')] },
+  { id:'b7', cat:'Control',  d:1, tk:[t('End If')] },
+  { id:'b8', cat:'Control',  d:0, tk:[t('End Repeat')] },
+  { id:'b9', cat:'Control',  d:0, tk:[t('End Program')] },
+];
+
+const DEBUG_BLOCKS = [
+  { id:'d1', cat:'Control',  d:0, tk:[t('Repeat '), vl('50'), t(' time(s)')] },
+  { id:'d2', cat:'Sensing',  d:1, tk:[t('If the '), dd('Center'), t(' IR sensor value '), dd('<'), t(' '), vl('30')] },
+  { id:'d3', cat:'Motion',   d:2, tk:[t("Move robot's "), dd('Both wheels'), t(' '), dd('Stop'), t(' at speed '), vl('0')], added:true },
+  { id:'d4', cat:'Motion',   d:2, tk:[t('Turn robot '), dd('Left'), t(' at speed '), vl('400')], bad:true,
+    badWhy:'There is no “Turn robot” block in the Motion tab. Drive each wheel separately instead.' },
+  { id:'d5', cat:'Variable', d:2, tk:[t('Add the variable '), dd('turns'), t(' by '), vl('1')] },
+  { id:'d6', cat:'Control',  d:1, tk:[t('End If')] },
+  { id:'d7', cat:'Control',  d:0, tk:[t('End Repeat')] },
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   THE HERO: the block program drawn as a line diagram with stations.
+   Nesting is a branch line that departs the trunk and rejoins it —
+   a depth you can trace with a finger, not just whitespace.
+   ═══════════════════════════════════════════════════════════════ */
+const TRUNK_X = 21;      // x of the depth-0 rail, inside the gutter
+const BRANCH  = 17;      // horizontal offset per branch level
+const DOT_Y   = 25;      // vertical centre of a station dot within a row
+const MAXD    = 2;
+const GUTTER  = TRUNK_X + BRANCH * MAXD + 22;
+
+function Token({ tok }) {
+  if (tok.k === 't') return <span>{tok.v}</span>;
+  if (tok.k === 'dd') return (
+    <span style={{
+      display:'inline-flex', alignItems:'center', gap:5,
+      background:'var(--paper-2)', border:'1.5px solid var(--rule)',
+      borderRadius:999, padding:'1px 9px 2px 11px', margin:'0 1px',
+      fontWeight:700, whiteSpace:'nowrap',
+    }}>
+      {tok.v}
+      <span style={{ fontSize:9, color:'var(--ink-3)', transform:'translateY(1px)' }}>▼</span>
+    </span>
+  );
+  return (
+    <span style={{
+      display:'inline-block',
+      background:'#fff', border:'1.5px solid var(--ink-2)',
+      borderRadius:5, padding:'1px 9px 2px', margin:'0 1px',
+      fontWeight:700, fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap',
+    }}>{tok.v}</span>
+  );
+}
+
+function Rails({ block, prev, next, state }) {
+  // state: 'done' | 'here' | 'todo' | 'bad'
+  const d = block.d;
+  const pd = prev ? prev.d : -1;
+  const nd = next ? next.d : -1;
+  const segs = [];
+
+  // trunk + every branch level that is live through this row
+  for (let lvl = 0; lvl <= Math.max(d, 0); lvl++) {
+    const x = TRUNK_X + lvl * BRANCH;
+    const startsHere = lvl === d && pd < d;     // this branch departs at this row
+    const endsHere   = lvl === d && nd < d;     // this branch rejoins after this row
+    const top    = startsHere ? DOT_Y : 0;
+    const bottom = endsHere ? 'auto' : 0;
+    segs.push(
+      <div key={'v'+lvl} style={{
+        position:'absolute', left:x - 1, top,
+        ...(endsHere ? { height: DOT_Y - top } : { bottom: 0 }),
+        width:2,
+        background: lvl < d || state === 'done' ? 'var(--rule)' : 'var(--rule)',
+      }} />
+    );
+  }
+  // elbow: the branch physically departs the parent rail
+  if (d > 0 && pd < d) {
+    segs.push(
+      <div key="elbow" style={{
+        position:'absolute', left: TRUNK_X + (d-1)*BRANCH - 1, top: DOT_Y - 1,
+        width: BRANCH, height:2, background:'var(--rule)',
+      }} />
+    );
+  }
+  // rejoin elbow
+  if (d > 0 && nd < d) {
+    segs.push(
+      <div key="rejoin" style={{
+        position:'absolute', left: TRUNK_X + (d-1)*BRANCH - 1, top: DOT_Y - 1,
+        width: BRANCH, height:2, background:'var(--rule)',
+      }} />
+    );
+  }
+
+  const x = TRUNK_X + d * BRANCH;
+  const dotStyle =
+    state === 'bad'  ? { background:'var(--bad)',  border:'2px solid var(--bad)',  w:14 } :
+    state === 'done' ? { background:'var(--ink)',  border:'2px solid var(--ink)',  w:14 } :
+    state === 'here' ? { background:'var(--mark)', border:'3px solid var(--mark-deep)', w:20 } :
+                       { background:'var(--paper)',border:'2px solid var(--ink-3)', w:14 };
+
+  return (
+    <div style={{ position:'relative', width:GUTTER, flex:'0 0 auto', alignSelf:'stretch' }}>
+      {segs}
+      <div style={{
+        position:'absolute', left: x - dotStyle.w/2, top: DOT_Y - dotStyle.w/2,
+        width:dotStyle.w, height:dotStyle.w, borderRadius:999,
+        background:dotStyle.background, border:dotStyle.border, boxSizing:'border-box',
+        display:'flex', alignItems:'center', justifyContent:'center',
+      }}>
+        {state === 'done' && (
+          <svg width="8" height="7" viewBox="0 0 8 7"><path d="M1 3.6L3 5.6L7 1.2" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        )}
+        {state === 'bad' && (
+          <span style={{ color:'#fff', fontSize:10, fontWeight:800, lineHeight:1 }}>!</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BlockLine({ block, prev, next, done, isHere, onToggle, tx }) {
+  const state = block.bad ? 'bad' : done ? 'done' : isHere ? 'here' : 'todo';
+  return (
+    <div
+      onClick={block.bad ? undefined : onToggle}
+      data-block-line={block.id}
+      role="button"
+      style={{
+        display:'flex', alignItems:'stretch', cursor: block.bad ? 'default' : 'pointer',
+        background: state === 'here' ? 'var(--mark-wash)' : state === 'bad' ? 'var(--bad-wash)' : 'transparent',
+        borderTop:'1px solid var(--rule-soft)',
+        WebkitTapHighlightColor:'transparent', userSelect:'none',
+        transition:'background .12s',
+      }}
+    >
+      <Rails block={block} prev={prev} next={next} state={state} />
+      <div style={{ flex:1, padding:'11px 16px 15px 0', minWidth:0 }}>
+        <div style={{
+          display:'flex', alignItems:'center', gap:8, marginBottom:4, height:15,
+        }}>
+          <span style={{
+            fontSize:10.5, fontWeight:800, letterSpacing:'.13em', textTransform:'uppercase',
+            color: state==='bad' ? 'var(--bad)' : state==='done' ? 'var(--ink-3)' : 'var(--ink-2)',
+          }}>{block.cat}</span>
+          {state === 'here' && (
+            <span style={{
+              fontSize:9.5, fontWeight:800, letterSpacing:'.13em',
+              color:'var(--mark-deep)', border:'1.5px solid var(--mark-deep)',
+              borderRadius:3, padding:'1px 5px',
+            }}>{tx.hereLabel}</span>
+          )}
+          {block.added && (
+            <span style={{
+              fontSize:9.5, fontWeight:800, letterSpacing:'.1em',
+              color:'#fff', background:'var(--ink)', borderRadius:3, padding:'2px 5px',
+            }}>ADD THIS</span>
+          )}
+        </div>
+        <div style={{
+          fontSize:16.5, lineHeight:'26px', fontWeight:600, letterSpacing:'-.005em',
+          color: state==='bad' ? 'var(--bad)' : state==='done' ? 'var(--ink-3)' : 'var(--ink)',
+          ...(state==='bad' ? {
+            border:'2px solid var(--bad)', borderRadius:8, padding:'6px 10px', background:'#fff',
+          } : {}),
+        }}>
+          {block.tk.map((tok,i)=><Token key={i} tok={tok} />)}
+        </div>
+        {block.bad && (
+          <div style={{ marginTop:8 }}>
+            <div style={{
+              fontSize:11, fontWeight:800, letterSpacing:'.1em', textTransform:'uppercase',
+              color:'var(--bad)', marginBottom:3,
+            }}>{tx.invalid}</div>
+            <div style={{ fontSize:13.5, lineHeight:'19px', color:'var(--ink-2)' }}>{block.badWhy}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BlockProgram({ blocks, doneSet, toggle, tx, lang }) {
+  const firstTodo = blocks.find(b => !b.bad && !doneSet.has(b.id));
+  const placeable = blocks.filter(b => !b.bad);
+  const nDone = placeable.filter(b => doneSet.has(b.id)).length;
+  const idx = firstTodo ? placeable.indexOf(firstTodo) + 1 : placeable.length;
+
+  return (
+    <div>
+      {/* PLATFORM INDICATOR — position on the route, always visible */}
+      <div style={{
+        position:'sticky', top:0, zIndex:5,
+        background:'var(--paper)', borderBottom:'2px solid var(--ink)',
+        padding:'11px 18px 10px',
+      }}>
+        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:8 }}>
+          <div style={{ fontSize:12.5, fontWeight:800, letterSpacing:'.14em', color:'var(--ink)' }}>
+            {lang==='zh'
+              ? <span>{tx.progress} {idx} {tx.of} {placeable.length}</span>
+              : <span>{tx.progress} {idx} {tx.of} {placeable.length}</span>}
+          </div>
+          <div style={{ fontSize:12.5, fontWeight:600, color:'var(--ink-2)' }}>
+            {nDone}/{placeable.length} {tx.done}
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:3 }}>
+          {placeable.map(b => {
+            const isD = doneSet.has(b.id);
+            const isH = firstTodo && b.id === firstTodo.id;
+            return <div key={b.id} style={{
+              flex:1, height:6, borderRadius:2,
+              background: isD ? 'var(--ink)' : isH ? 'var(--mark)' : 'var(--rule)',
+            }} />;
+          })}
+        </div>
+      </div>
+
+      <div style={{ background:'var(--paper)' }}>
+        {blocks.map((b,i)=>(
+          <BlockLine
+            key={b.id} block={b} prev={blocks[i-1]} next={blocks[i+1]}
+            done={doneSet.has(b.id)}
+            isHere={!!firstTodo && firstTodo.id === b.id}
+            onToggle={()=>toggle(b.id)}
+            tx={tx}
+          />
+        ))}
+        <div style={{ borderTop:'1px solid var(--rule-soft)', padding:'14px 18px 18px', paddingLeft:GUTTER }}>
+          <div style={{ fontSize:13.5, lineHeight:'19px', color:'var(--ink-2)' }}>
+            {nDone === placeable.length ? tx.allDone : tx.tapHint}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Shared chrome pieces
+   ═══════════════════════════════════════════════════════════════ */
+function ScreenHead({ label, title, right }) {
+  return (
+    <div style={{ padding:'14px 18px 12px', borderBottom:'1px solid var(--rule)', background:'var(--paper)' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'.16em', textTransform:'uppercase', color:'var(--ink-2)' }}>{label}</div>
+        {right}
+      </div>
+      {title && <div style={{ fontSize:22, fontWeight:700, letterSpacing:'-.02em', color:'var(--ink)', marginTop:4 }}>{title}</div>}
+    </div>
+  );
+}
+
+function Region({ label, children, tone }) {
+  return (
+    <div style={{
+      padding:'14px 18px 16px',
+      background: tone === 'wrong' ? 'var(--paper-2)' : 'var(--paper)',
+      borderBottom:'1px solid var(--rule)',
+    }}>
+      <div style={{
+        fontSize:11, fontWeight:800, letterSpacing:'.16em', textTransform:'uppercase',
+        color: tone === 'wrong' ? 'var(--bad)' : 'var(--ink-3)', marginBottom:6,
+      }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function EnglishRule({ tx }) {
+  return (
+    <div style={{
+      display:'flex', gap:9, alignItems:'flex-start',
+      padding:'10px 18px 11px', background:'var(--ink)',
+    }}>
+      <span style={{
+        flex:'0 0 auto', fontSize:9.5, fontWeight:800, letterSpacing:'.1em',
+        color:'var(--ink)', background:'var(--mark)', borderRadius:3, padding:'2px 5px', marginTop:1,
+      }}>EN</span>
+      <span style={{ fontSize:12.5, lineHeight:'17px', color:'oklch(0.86 0.01 255)' }}>{tx.engNote}</span>
+    </div>
+  );
+}
+
+function LangSwitch({ lang, setLang, dark }) {
+  return (
+    <div style={{ display:'flex', gap:0, border:`1.5px solid ${dark?'var(--stage-2)':'var(--rule)'}`, borderRadius:8, overflow:'hidden' }}>
+      {LANGS.map(l=>(
+        <button key={l.id} data-lang={l.id} onClick={()=>setLang(l.id)} style={{
+          border:'none', cursor:'pointer', padding:'5px 10px 6px',
+          fontSize:12.5, fontWeight:700, letterSpacing:'.02em',
+          background: lang===l.id ? 'var(--ink)' : 'transparent',
+          color: lang===l.id ? '#fff' : 'var(--ink-2)',
+        }}>{l.short}</button>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 1 — ENTRY. One question: which way?
+   ═══════════════════════════════════════════════════════════════ */
+function EntryScreen() {
+  const [lang, setLang] = useState('en');
+  const [mode, setMode] = useState(null);
+  const tx = T[lang];
+
+  const Fork = ({ id, num, title, sub }) => {
+    const on = mode === id;
+    return (
+      <button data-mode={id} onClick={()=>setMode(id)} style={{
+        display:'flex', alignItems:'stretch', width:'100%', textAlign:'left',
+        border: on ? '3px solid var(--ink)' : '2px solid var(--rule)',
+        background: on ? 'var(--mark-wash)' : '#fff',
+        borderRadius:16, padding:0, cursor:'pointer', overflow:'hidden',
+        boxShadow: on ? '0 6px 20px oklch(0.24 0.015 255 / .14)' : 'none',
+      }}>
+        <div style={{
+          flex:'0 0 62px', display:'flex', alignItems:'center', justifyContent:'center',
+          background: on ? 'var(--mark)' : 'var(--paper-2)',
+          borderRight:'1px solid var(--rule)',
+        }}>
+          <span style={{ fontSize:26, fontWeight:800, color: on ? 'var(--ink)' : 'var(--ink-3)' }}>{num}</span>
+        </div>
+        <div style={{ padding:'20px 16px 22px', flex:1 }}>
+          <div style={{ fontSize:27, fontWeight:700, letterSpacing:'-.02em', color:'var(--ink)', lineHeight:1.1 }}>{title}</div>
+          <div style={{ fontSize:15, color:'var(--ink-2)', marginTop:6, lineHeight:1.35 }}>{sub}</div>
+        </div>
+      </button>
+    );
+  };
+
+  return (
+    <div style={{ background:'var(--paper)', minHeight:'100%', display:'flex', flexDirection:'column' }}>
+      <div style={{ padding:'20px 18px 4px' }}>
+        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'.16em', textTransform:'uppercase', color:'var(--ink-3)' }}>R BLOCK CODING BUDDY</div>
+        <div style={{ fontSize:26, fontWeight:700, letterSpacing:'-.025em', color:'var(--ink)', marginTop:6 }}>{tx.greet}</div>
+      </div>
+
+      {/* The fork, drawn as a fork: one rail that splits into two routes */}
+      <div style={{ padding:'14px 18px 0', display:'flex', gap:12 }}>
+        <div style={{ flex:'0 0 22px', position:'relative' }}>
+          <div style={{ position:'absolute', left:10, top:0, width:2, height:56, background:'var(--rule)' }} />
+          <div style={{ position:'absolute', left:10, top:56, width:2, bottom:8, background:'var(--rule)' }} />
+          <div style={{ position:'absolute', left:10, top:56, width:12, height:2, background:'var(--rule)' }} />
+          <div style={{ position:'absolute', left:10, top:172, width:12, height:2, background:'var(--rule)' }} />
+          <div style={{ position:'absolute', left:4, top:0, width:14, height:14, borderRadius:999, background:'var(--ink)' }} />
+        </div>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', gap:14 }}>
+          <Fork id="build" num="1" title={tx.build} sub={tx.buildSub} />
+          <Fork id="debug" num="2" title={tx.debug} sub={tx.debugSub} />
+        </div>
+      </div>
+
+      <div style={{ flex:1 }} />
+
+      <div style={{ borderTop:'1px solid var(--rule)', padding:'14px 18px 16px', background:'var(--paper-2)' }}>
+        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'.16em', textTransform:'uppercase', color:'var(--ink-3)', marginBottom:9 }}>{tx.langLabel}</div>
+        <div style={{ display:'flex', gap:8 }}>
+          {LANGS.map(l=>(
+            <button key={l.id} data-lang={l.id} onClick={()=>setLang(l.id)} style={{
+              flex:1, padding:'12px 4px 13px', borderRadius:10, cursor:'pointer',
+              border: lang===l.id ? '2.5px solid var(--ink)' : '1.5px solid var(--rule)',
+              background: lang===l.id ? 'var(--ink)' : '#fff',
+              color: lang===l.id ? '#fff' : 'var(--ink-2)',
+              fontSize:14, fontWeight:700, letterSpacing:'-.01em',
+            }}>{l.label}</button>
+          ))}
+        </div>
+        <div style={{ fontSize:12.5, lineHeight:'17px', color:'var(--ink-2)', marginTop:10 }}>{tx.langNote}</div>
+      </div>
+
+      <button disabled={!mode} style={{
+        border:'none', cursor: mode ? 'pointer' : 'default',
+        background: mode ? 'var(--ink)' : 'var(--rule)',
+        color: mode ? '#fff' : 'var(--ink-3)',
+        fontSize:17, fontWeight:700, padding:'18px 0 20px', letterSpacing:'-.01em',
+      }}>
+        {mode ? `${mode==='build'?tx.build:tx.debug} →`
+          : (lang==='zh' ? '先选 1 或 2' : lang==='ms' ? 'Pilih 1 atau 2 dahulu' : 'Choose 1 or 2 first')}
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 2 — ASK, with the attached-photo state.
+   ═══════════════════════════════════════════════════════════════ */
+function AskScreen() {
+  const [lang, setLang] = useState('en');
+  const [photo, setPhoto] = useState(true);
+  const tx = T[lang];
+  return (
+    <div style={{ background:'var(--paper)', minHeight:'100%', display:'flex', flexDirection:'column' }}>
+      <ScreenHead label={`1 · ${tx.askTitle}`} title={tx.askQ}
+        right={<LangSwitch lang={lang} setLang={setLang} />} />
+
+      <div style={{ padding:'16px 18px 0' }}>
+        <div style={{
+          border:'2px solid var(--ink)', borderRadius:12, background:'#fff',
+          padding:'14px 14px 16px', minHeight:132,
+        }}>
+          <div style={{ fontSize:16.5, lineHeight:'25px', color:'var(--ink)', fontWeight:500 }}>
+            {lang==='en' && <span>The robot follows the black line but it doesn’t stop when it reaches the wall at the end.</span>}
+            {lang==='ms' && <span>Robot mengikut garisan hitam tetapi tidak berhenti apabila sampai ke dinding.</span>}
+            {lang==='zh' && <span>机器人能沿黑线走，但走到尽头的墙前不会停下来。</span>}
+            <span style={{
+              display:'inline-block', width:2, height:19, background:'var(--mark-deep)',
+              verticalAlign:'-3px', marginLeft:2,
+            }} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding:'14px 18px 0' }}>
+        {!photo ? (
+          <button data-photo-add onClick={()=>setPhoto(true)} style={{
+            width:'100%', display:'flex', alignItems:'center', gap:12,
+            border:'1.5px dashed var(--ink-3)', background:'transparent',
+            borderRadius:12, padding:'16px 14px', cursor:'pointer', textAlign:'left',
+          }}>
+            <span style={{
+              flex:'0 0 34px', height:34, borderRadius:8, border:'1.5px solid var(--ink-3)',
+              display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, color:'var(--ink-2)',
+            }}>+</span>
+            <span style={{ fontSize:14.5, fontWeight:600, color:'var(--ink-2)' }}>{tx.addPhoto}</span>
+          </button>
+        ) : (
+          <div style={{
+            display:'flex', gap:12, alignItems:'center',
+            border:'1.5px solid var(--rule)', borderRadius:12, background:'#fff', padding:10,
+          }}>
+            {/* honest placeholder plate — no stock imagery */}
+            <div style={{
+              flex:'0 0 66px', height:66, borderRadius:8, background:'var(--paper-2)',
+              border:'1.5px solid var(--rule)', position:'relative', overflow:'hidden',
+            }}>
+              <div style={{ position:'absolute', inset:0,
+                backgroundImage:'repeating-linear-gradient(135deg, oklch(0.90 0.006 255) 0 6px, transparent 6px 12px)' }} />
+              <div style={{
+                position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:9.5, fontWeight:800, letterSpacing:'.1em', color:'var(--ink-2)',
+              }}>IMG</div>
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14.5, fontWeight:700, color:'var(--ink)' }}>{tx.photoAttached}</div>
+              <div style={{ fontSize:12.5, color:'var(--ink-2)', marginTop:2 }}>{tx.photoHint}</div>
+            </div>
+            <button data-photo-remove onClick={()=>setPhoto(false)} style={{
+              border:'1.5px solid var(--rule)', background:'#fff', borderRadius:8,
+              padding:'7px 11px', fontSize:12.5, fontWeight:700, color:'var(--ink-2)', cursor:'pointer',
+            }}>{tx.remove}</button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ flex:1 }} />
+      <div style={{ padding:'0 18px 14px' }}>
+        <button style={{
+          width:'100%', border:'none', background:'var(--ink)', color:'#fff',
+          fontSize:17, fontWeight:700, padding:'17px 0 18px', borderRadius:12, cursor:'pointer',
+        }}>{tx.send} →</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 3 — QUEUE. The wait drawn as the same rail: you are a
+   station on a line, and you can see the stations before you.
+   ═══════════════════════════════════════════════════════════════ */
+function QueueScreen() {
+  const [lang, setLang] = useState('en');
+  const tx = T[lang];
+  const rows = [
+    { k:'a', label: lang==='zh' ? '同学 A' : lang==='ms' ? 'Pelajar A' : 'Student A', state:'done',  note: lang==='zh'?'已完成':'answered' },
+    { k:'b', label: lang==='zh' ? '同学 B' : lang==='ms' ? 'Pelajar B' : 'Student B', state:'now',   note: lang==='zh'?'正在生成':'being answered' },
+    { k:'you', label: tx.you, state:'you',  note: tx.est },
+  ];
+  return (
+    <div style={{ background:'var(--paper)', minHeight:'100%', display:'flex', flexDirection:'column' }}>
+      <ScreenHead label="2 · Queue" title={tx.waitTitle}
+        right={<LangSwitch lang={lang} setLang={setLang} />} />
+
+      <div style={{ padding:'20px 18px 0' }}>
+        <div style={{
+          border:'2px solid var(--ink)', borderRadius:12, padding:'14px 16px 15px', background:'#fff',
+        }}>
+          <div style={{ fontSize:19, fontWeight:700, letterSpacing:'-.02em', color:'var(--ink)' }}>{tx.inQueue}</div>
+          <div style={{ fontSize:15, color:'var(--ink)', marginTop:4, fontWeight:600 }}>{tx.est}</div>
+          <div style={{ height:8, borderRadius:3, background:'var(--rule)', marginTop:12, overflow:'hidden' }}>
+            <div style={{ width:'62%', height:'100%', background:'var(--mark)' }} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding:'22px 18px 0' }}>
+        {rows.map((r,i)=>(
+          <div key={r.k} style={{ display:'flex', alignItems:'stretch' }}>
+            <div style={{ position:'relative', width:44, flex:'0 0 auto' }}>
+              <div style={{ position:'absolute', left:20, top: i===0?24:0, bottom: i===rows.length-1?'auto':0,
+                height: i===rows.length-1 ? 24 : undefined, width:2, background:'var(--rule)' }} />
+              <div style={{
+                position:'absolute', left: r.state==='you' ? 11 : 14, top: r.state==='you' ? 15 : 18,
+                width: r.state==='you' ? 20 : 14, height: r.state==='you' ? 20 : 14, borderRadius:999,
+                boxSizing:'border-box',
+                background: r.state==='done' ? 'var(--ink)' : r.state==='you' ? 'var(--mark)' : 'var(--paper)',
+                border: r.state==='done' ? '2px solid var(--ink)' : r.state==='you' ? '3px solid var(--mark-deep)' : '2px solid var(--ink-3)',
+              }} />
+            </div>
+            <div style={{ flex:1, padding:'12px 0 16px' }}>
+              <div style={{
+                fontSize: r.state==='you' ? 17 : 15, fontWeight: r.state==='you' ? 800 : 600,
+                color: r.state==='done' ? 'var(--ink-3)' : 'var(--ink)',
+                letterSpacing: r.state==='you' ? '.02em' : '-.01em',
+              }}>{r.label}</div>
+              <div style={{ fontSize:13, color:'var(--ink-2)', marginTop:2 }}>{r.note}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding:'4px 18px 0' }}>
+        <div style={{ fontSize:13.5, lineHeight:'19px', color:'var(--ink-2)', borderTop:'1px solid var(--rule)', paddingTop:14 }}>
+          {tx.honest}
+        </div>
+      </div>
+      <div style={{ flex:1 }} />
+      <EnglishRule tx={tx} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 4 — ANSWER · BUILD
+   ═══════════════════════════════════════════════════════════════ */
+function BuildAnswerScreen() {
+  const [lang, setLang] = useState('en');
+  const [doneSet, setDone] = useState(()=> new Set(['b1','b2']));
+  const tx = T[lang];
+  const toggle = id => setDone(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  return (
+    <div style={{ background:'var(--paper)', minHeight:'100%' }}>
+      <ScreenHead label={`3 · ${tx.summary}`} right={<LangSwitch lang={lang} setLang={setLang} />} />
+      <Region label={tx.summary}>
+        <div style={{ fontSize:16, lineHeight:'24px', color:'var(--ink)', fontWeight:500 }}>
+          {lang==='en' && 'Read the left IR sensor each loop. Drive the opposite wheel so the robot curves back onto the line.'}
+          {lang==='ms' && 'Baca sensor IR kiri setiap pusingan. Pandu roda bertentangan supaya robot melengkung kembali ke garisan.'}
+          {lang==='zh' && '每次循环读一次左侧红外传感器，驱动另一侧的轮子，让机器人拐回黑线上。'}
+        </div>
+      </Region>
+
+      <div style={{
+        padding:'13px 18px 11px', background:'var(--paper)', borderBottom:'1px solid var(--rule)',
+      }}>
+        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'.16em', textTransform:'uppercase', color:'var(--ink-3)' }}>{tx.blocks}</div>
+      </div>
+
+      <BlockProgram blocks={BUILD_BLOCKS} doneSet={doneSet} toggle={toggle} tx={tx} lang={lang} />
+
+      <Region label={tx.note}>
+        <div style={{ fontSize:14.5, lineHeight:'21px', color:'var(--ink-2)' }}>
+          {lang==='en' && 'If it wobbles, lower both speed values to 350 before changing anything else.'}
+          {lang==='ms' && 'Jika ia bergoyang, turunkan kedua-dua nilai kelajuan kepada 350 dahulu.'}
+          {lang==='zh' && '如果机器人左右摇摆，先把两个速度值都降到 350 再动别的。'}
+        </div>
+      </Region>
+      <EnglishRule tx={tx} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 5 — ANSWER · DEBUG, in Chinese chrome with English blocks,
+   including the failed-validation red box.
+   ═══════════════════════════════════════════════════════════════ */
+function DebugAnswerScreen() {
+  const [lang, setLang] = useState('zh');
+  const [doneSet, setDone] = useState(()=> new Set(['d1']));
+  const tx = T[lang];
+  const toggle = id => setDone(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  return (
+    <div style={{ background:'var(--paper)', minHeight:'100%' }}>
+      <ScreenHead label={`3 · ${tx.debug}`} right={<LangSwitch lang={lang} setLang={setLang} />} />
+
+      <div style={{ padding:'14px 18px 16px', background:'var(--ink)' }}>
+        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'.16em', textTransform:'uppercase', color:'var(--mark)', marginBottom:6 }}>
+          {tx.wrong}
+        </div>
+        <div style={{ fontSize:16, lineHeight:'24px', color:'#fff', fontWeight:500 }}>
+          {lang==='zh' && '循环里没有把轮子速度重新设为 0，所以机器人碰到墙之后还会继续转。'}
+          {lang==='ms' && 'Kelajuan roda tidak pernah ditetapkan semula kepada 0 di dalam gelung, jadi robot terus berpusing selepas terkena dinding.'}
+          {lang==='en' && 'The wheel speed is never reset to 0 inside the loop, so the robot keeps turning after it meets the wall.'}
+        </div>
+      </div>
+
+      <Region label={tx.summary}>
+        <div style={{ fontSize:16, lineHeight:'24px', color:'var(--ink)', fontWeight:500 }}>
+          {lang==='zh' && '在 If 里加一块把两个轮子停下的 Motion 积木，并删掉那块不存在的积木。'}
+          {lang==='ms' && 'Tambah satu blok Motion yang menghentikan kedua-dua roda di dalam If, dan buang blok yang tidak wujud.'}
+          {lang==='en' && 'Add one Motion block that stops both wheels inside the If, and delete the block that does not exist.'}
+        </div>
+      </Region>
+
+      <div style={{ padding:'13px 18px 11px', borderBottom:'1px solid var(--rule)' }}>
+        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'.16em', textTransform:'uppercase', color:'var(--ink-3)' }}>{tx.blocks}</div>
+      </div>
+
+      <BlockProgram blocks={DEBUG_BLOCKS} doneSet={doneSet} toggle={toggle} tx={tx} lang={lang} />
+
+      <EnglishRule tx={tx} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+const SCREENS = [
+  { n:'Screen 1', cap:'Entry — a fork, not a menu. One rail splits into two routes. Tap a route; tap a language.', C: EntryScreen },
+  { n:'Screen 2', cap:'Ask — one field, plus the attached-photo state as an honest plate. Remove / Add both work.', C: AskScreen },
+  { n:'Screen 3', cap:'Queue — the wait drawn as the same rail. You see who is ahead; the wait is a range, not a spinner.', C: QueueScreen },
+  { n:'Screen 4', cap:'Answer · Build — the hero. Nesting is a real branch line; tap a station to mark it placed and YOU ARE HERE walks on.', C: BuildAnswerScreen },
+  { n:'Screen 5', cap:'Answer · Debug — Chinese chrome, English block names, fault stated first, failed validation in a red box.', C: DebugAnswerScreen },
+];
+
+function App() {
+  return (
+    <div>
+      <div className="stage-head">
+        <p className="kicker">Designer lens · Erik Spiekermann / MetaDesign</p>
+        <h1 className="stage-title">R Block Coding Buddy</h1>
+        <p className="stage-sub">
+          Designed as <b>signage, not a chat app</b>. The student is mid-journey with one hand on a robot, so the
+          only question that matters is <b>where am I on this program and how much is left</b>. The block list is
+          therefore drawn as a line diagram with stations and real branch lines for nesting. Colour is a scarce
+          navigational channel: <b>one amber</b> for your position, <b>one red</b> for a block name that failed
+          validation, and nothing else. Block categories are set as type, not colour.
+        </p>
+      </div>
+      <div className="rail-deck">
+        {SCREENS.map(s=>(
+          <div className="phone-slot" key={s.n}>
+            <div className="caption"><b>{s.n}</b>{s.cap}</div>
+            <div className="phone-box">
+              <div className="phone-scale">
+                <IosFrame time="10:42" battery={68}><s.C /></IosFrame>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

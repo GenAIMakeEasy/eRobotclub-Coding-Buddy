@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>R Block Coding Buddy — Benchmark Transfer</title>
+
+<!--
+================================================================================
+BENCHMARK TRANSFER — case, verification, and what was carried across
+================================================================================
+
+CASE CHOSEN
+  Kitchen Stories (AJNS New Media GmbH, Berlin) — iOS/watchOS/tvOS recipe app.
+
+WHAT I VERIFIED (WebSearch, not memory)
+  - Kitchen Stories is a genuine Apple Design Award winner, announced at WWDC
+    2017. Apple's own newsroom release "Apple Design Awards celebrate innovation
+    and creativity" (June 2017) lists it in the App Winners cohort alongside
+    Lake, Bear, Things 3, Elk, Enlight and Airmail 3. It also took App Store
+    Best-of placements in 2014 and 2015. Founded by Mengting Gao and Verena
+    Hubertz; the app was cited by Apple for being written almost entirely in
+    Swift and shipping a coherent experience across iPhone, iPad, Watch and TV.
+  - Verified design facts (design writeups on DesignRush / bestdesigns.co /
+    Mac O'Clock "Design details: Kitchen Stories"): modern lightweight
+    typography, custom iconography, very large amounts of white space, an
+    uncluttered near-white field, and a dedicated "cooking mode" entered from a
+    Start Cooking button — a full-screen, step-at-a-time reading mode where the
+    ingredients needed for THAT step are repeated inline so the cook never has
+    to navigate back to the ingredient list.
+
+WHY THIS CASE AND NOT A CODE EDITOR
+  The core problem is identical, and it is not a code problem. A cook has flour
+  on both hands, a noisy room, a phone propped at arm's length, and one
+  question: "which step am I on, and what exactly do I do next?" An R Block
+  student at a competition bench has a robot in one hand, a noisy hall, and the
+  same question while transcribing blocks into the ROBOTIS R+ app. Kitchen
+  Stories is the best-recognised solved answer to place-keeping under divided
+  attention that I could actually verify.
+
+WHAT WAS TRANSFERRED (mechanism, not surface)
+  1. COOK MODE -> TRANSCRIBE MODE. The Build/Debug answer screen is not a
+     document to read, it is a mode you are *inside*. A persistent header does
+     what the cooking-mode step counter does: "4 / 10 placed", a hairline
+     progress bar, and a single always-visible NEXT UP target. Kitchen Stories
+     never makes you hunt for your place; neither does this.
+  2. STEP-LOCAL INGREDIENTS -> INLINE SLOTS. Kitchen Stories repeats the
+     ingredients for the current step inside that step so you never scroll back.
+     Here every dropdown and typed value a block needs is rendered inside that
+     block's own line as a distinct filled pill / boxed numeral. No legend, no
+     lookup elsewhere.
+  3. ONE ACTIVE STEP, EVERYTHING ELSE QUIET. Done lines recede to a pale
+     completed state; the current line carries an accent ring and a raised
+     card. Kitchen Stories' airy near-white field is reproduced so that the
+     block path is the only thing with weight on the screen.
+  4. LIGHTWEIGHT TYPOGRAPHY, HEAVY WHITESPACE, MINIMAL CHROME. Large thin
+     display numerals for step numbers, generous line height, hairline rules
+     instead of boxes.
+  5. THE FORK. Kitchen Stories' Start Cooking button is one unmissable
+     commitment target. The entry screen's Build/Debug fork is built the same
+     way: two full-bleed committing targets, not a menu.
+
+  NOT transferred: the photography. Kitchen Stories leans on food imagery to
+  carry all the colour and emotion. The brief forbids imagery, so that role had
+  to be reassigned — see the colour note below.
+
+THE VERTICAL WALKED PATH
+  Kitchen Stories' place-keeping answer is linear (swipe, one step at a time).
+  R Block is *nested*, so a pure one-at-a-time carousel would destroy the shape
+  of the program. The transfer keeps the mechanism (position is always visible,
+  the current step is unmistakable) but re-forms it as a continuous vertical
+  spine that indents with scope. The spine is filled with accent behind you and
+  hairline ahead of you — a trail you have walked down, with nesting legible as
+  the trail stepping right and back.
+================================================================================
+-->
+
+<style>
+  /* ==========================================================================
+     COLOUR DERIVATION — sampled from Kitchen Stories' LOGIC, not its swatches
+     --------------------------------------------------------------------------
+     Kitchen Stories' colour logic is: the interface is deliberately colourless
+     — a near-white, faintly warm paper field with black type — so that the ONE
+     colourful thing on screen (the food photograph) is unambiguously the
+     content. Colour is a pointer, not decoration.
+
+     I keep the logic and reassign the pointer. There is no photograph here, so
+     the thing that must own the colour is the student's POSITION ON THE PATH.
+     Hence: the entire surface is a low-chroma warm paper field, and saturated
+     colour appears in exactly one place — the walked spine, the progress bar,
+     and the next-up ring.
+
+     Accent hue: I did not copy Kitchen Stories' appetite-warm red. I re-derived
+     from this content. Two constraints pushed the hue: (a) the ROBOTIS R+ Ollo
+     kit the students actually hold is red-and-white, so a warm hue is the
+     honest environmental match; (b) the screen is read at arm's length in a bad
+     competition hall, and blue/green accents lose to overhead fluorescent
+     glare, while amber holds luminance separation from paper. So the accent is
+     an ember amber, oklch(0.64 0.155 52) — rotated ~20 degrees warmer/yellower
+     than a pure red so that it CANNOT be confused with the validation red,
+     which has to stay unambiguous in the Debug screen.
+
+     Danger red is oklch(0.53 0.21 25): darker and much more chromatic than the
+     accent, so "invalid block" never reads as "your current step".
+
+     Large fields are all chroma <= 0.012. Category chips are hue-coded but
+     capped at chroma 0.10 so eight of them can sit in one list without the
+     page turning into confetti.
+     ========================================================================== */
+  :root {
+    --paper:        oklch(0.968 0.006 78);
+    --paper-deep:   oklch(0.925 0.010 76);
+    --card:         oklch(0.995 0.002 90);
+    --app-bg:       oklch(0.985 0.004 84);
+    --ink:          oklch(0.245 0.015 60);
+    --ink-mid:      oklch(0.455 0.014 60);
+    --ink-soft:     oklch(0.615 0.012 62);
+    --ink-faint:    oklch(0.755 0.010 65);
+    --hair:         oklch(0.905 0.007 70);
+    --hair-soft:    oklch(0.945 0.005 74);
+
+    --accent:       oklch(0.640 0.155 52);
+    --accent-deep:  oklch(0.470 0.135 48);
+    --accent-wash:  oklch(0.960 0.028 62);
+    --accent-edge:  oklch(0.885 0.060 58);
+    --on-accent:    oklch(0.255 0.075 48);
+
+    --danger:       oklch(0.530 0.210 25);
+    --danger-wash:  oklch(0.963 0.026 25);
+    --danger-edge:  oklch(0.855 0.090 25);
+
+    --done:         oklch(0.560 0.075 155);
+    --done-wash:    oklch(0.965 0.020 155);
+  }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 700px at 18% -8%, oklch(0.995 0.006 82) 0%, transparent 62%),
+      radial-gradient(900px 600px at 92% 4%, oklch(0.975 0.016 58) 0%, transparent 58%),
+      var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+  }
+  .mono {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, monospace;
+  }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+
+/* ============================================================================
+   IosFrame — copied verbatim from
+   .claude/skills/huashu-design/assets/ios_frame.jsx
+   ========================================================================== */
+const iosFrameStyles = {
+  wrapper: {
+    display: 'inline-block',
+    padding: 12,
+    background: '#000',
+    borderRadius: 60,
+    boxShadow: '0 0 0 2px #1f2937, 0 20px 60px rgba(0,0,0,0.3)',
+    position: 'relative',
+  },
+  screen: {
+    position: 'relative',
+    borderRadius: 48,
+    overflow: 'hidden',
+    background: '#fff',
+  },
+  statusBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 54,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 32px 0 32px',
+    fontSize: 16,
+    fontWeight: 600,
+    fontFamily: '-apple-system, "SF Pro Text", sans-serif',
+    zIndex: 20,
+    pointerEvents: 'none',
+  },
+  dynamicIsland: {
+    position: 'absolute',
+    top: 12,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 124,
+    height: 36,
+    background: '#000',
+    borderRadius: 999,
+    zIndex: 30,
+  },
+  statusIcons: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  signalIcon: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: 2,
+    height: 12,
+  },
+  signalBar: {
+    width: 3,
+    background: 'currentColor',
+    borderRadius: 1,
+  },
+  wifiIcon: {
+    width: 16,
+    height: 12,
+    position: 'relative',
+  },
+  batteryIcon: {
+    width: 26,
+    height: 12,
+    border: '1.5px solid currentColor',
+    borderRadius: 3,
+    padding: 1,
+    position: 'relative',
+    opacity: 0.8,
+  },
+  batteryCap: {
+    position: 'absolute',
+    top: 3,
+    right: -3,
+    width: 2,
+    height: 6,
+    background: 'currentColor',
+    borderRadius: '0 1px 1px 0',
+  },
+  content: {
+    position: 'absolute',
+    top: 54,
+    left: 0,
+    right: 0,
+    bottom: 34,
+    overflow: 'auto',
+  },
+  homeIndicator: {
+    position: 'absolute',
+    bottom: 10,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: 140,
+    height: 5,
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: 999,
+    zIndex: 10,
+  },
+  homeIndicatorDark: {
+    background: 'rgba(255,255,255,0.5)',
+  },
+};
+
+function IosFrame({
+  children,
+  width = 393,
+  height = 852,
+  time = '9:41',
+  battery = 100,
+  darkMode = false,
+  showStatusBar = true,
+  showDynamicIsland = true,
+  showHomeIndicator = true,
+}) {
+  const textColor = darkMode ? '#fff' : '#000';
+
+  return (
+    <div style={iosFrameStyles.wrapper}>
+      <div style={{
+        ...iosFrameStyles.screen,
+        width,
+        height,
+        background: darkMode ? '#000' : '#fff',
+      }}>
+        {showStatusBar && (
+          <div style={{ ...iosFrameStyles.statusBar, color: textColor }}>
+            <span>{time}</span>
+            <div style={iosFrameStyles.statusIcons}>
+              <div style={iosFrameStyles.signalIcon}>
+                <div style={{ ...iosFrameStyles.signalBar, height: 4 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 6 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 9 }} />
+                <div style={{ ...iosFrameStyles.signalBar, height: 11 }} />
+              </div>
+              <svg width="16" height="12" viewBox="0 0 16 12" fill="none" style={{ color: textColor }}>
+                <path d="M8 11.5a1 1 0 100-2 1 1 0 000 2z" fill="currentColor" />
+                <path d="M3 7.5a7 7 0 0110 0" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+                <path d="M1 4.5a11 11 0 0114 0" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.7" />
+              </svg>
+              <div style={iosFrameStyles.batteryIcon}>
+                <div style={{
+                  width: `${battery}%`,
+                  height: '100%',
+                  background: 'currentColor',
+                  borderRadius: 1,
+                  opacity: 0.9,
+                }} />
+                <div style={iosFrameStyles.batteryCap} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showDynamicIsland && <div style={iosFrameStyles.dynamicIsland} />}
+
+        <div style={iosFrameStyles.content}>
+          {children}
+        </div>
+
+        {showHomeIndicator && (
+          <div style={{
+            ...iosFrameStyles.homeIndicator,
+            ...(darkMode ? iosFrameStyles.homeIndicatorDark : {}),
+          }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   Tokens
+   ========================================================================== */
+const C = {
+  card: 'oklch(0.995 0.002 90)',
+  appBg: 'oklch(0.985 0.004 84)',
+  ink: 'oklch(0.245 0.015 60)',
+  inkMid: 'oklch(0.455 0.014 60)',
+  inkSoft: 'oklch(0.615 0.012 62)',
+  inkFaint: 'oklch(0.755 0.010 65)',
+  hair: 'oklch(0.905 0.007 70)',
+  hairSoft: 'oklch(0.945 0.005 74)',
+  accent: 'oklch(0.640 0.155 52)',
+  accentDeep: 'oklch(0.470 0.135 48)',
+  accentWash: 'oklch(0.960 0.028 62)',
+  accentEdge: 'oklch(0.885 0.060 58)',
+  onAccent: 'oklch(0.255 0.075 48)',
+  danger: 'oklch(0.530 0.210 25)',
+  dangerWash: 'oklch(0.963 0.026 25)',
+  dangerEdge: 'oklch(0.855 0.090 25)',
+  done: 'oklch(0.520 0.075 155)',
+  doneWash: 'oklch(0.968 0.018 155)',
+};
+
+const MONO = 'ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, monospace';
+
+/* Category hues — all chroma capped at 0.10 so eight can coexist calmly. */
+const CAT = {
+  Control:     { fg: 'oklch(0.470 0.100 288)', bg: 'oklch(0.962 0.016 288)' },
+  Motion:      { fg: 'oklch(0.460 0.100 245)', bg: 'oklch(0.960 0.017 245)' },
+  Sensing:     { fg: 'oklch(0.435 0.085 178)', bg: 'oklch(0.958 0.017 178)' },
+  Variable:    { fg: 'oklch(0.455 0.085 78)',  bg: 'oklch(0.958 0.020 78)'  },
+  Calculation: { fg: 'oklch(0.470 0.095 330)', bg: 'oklch(0.962 0.016 330)' },
+  Function:    { fg: 'oklch(0.455 0.080 140)', bg: 'oklch(0.958 0.017 140)' },
+  Screen:      { fg: 'oklch(0.450 0.075 215)', bg: 'oklch(0.958 0.015 215)' },
+  Sound:       { fg: 'oklch(0.465 0.090 20)',  bg: 'oklch(0.960 0.016 20)'  },
+};
+
+/* ============================================================================
+   Copy — interface language. Block names are NEVER in here: they are English
+   by contract, and the UI marks that fact rather than hiding it.
+   ========================================================================== */
+const T = {
+  en: {
+    code: 'EN', name: 'English',
+    greet: 'R Block Buddy',
+    sub: 'Robotics club · ROBOTIS R+ Ollo',
+    pick: 'What do you need?',
+    build: 'Build', buildSub: 'Write me a program',
+    debug: 'Debug', debugSub: "Mine doesn't work",
+    lang: 'Language',
+    langNote: 'Saved on this device',
+    askTitle: 'Build',
+    askQ: 'What should the robot do?',
+    ph: 'e.g. follow the black line and stop before the wall',
+    addPhoto: 'Add a photo',
+    photoHint: 'Course layout or your robot',
+    attached: 'Photo attached',
+    remove: 'Remove',
+    go: 'Ask',
+    queueTitle: 'Working on it',
+    inQueue: 'You are in the queue',
+    position: 'Position',
+    ahead: 'ahead of you',
+    est: 'Estimated wait',
+    stages: ['Question received', 'Reading your photo', 'Choosing blocks', 'Checking every block name'],
+    keep: 'You can keep building. We will hold your answer here.',
+    summary: 'Summary',
+    program: 'Program',
+    placed: 'placed',
+    nextUp: 'Next up',
+    tapHint: 'Tap each line as you place it in R+',
+    note: 'Note',
+    engNote: 'Block names stay in English — that is what R+ shows',
+    wrong: 'What was wrong',
+    allDone: 'All blocks placed',
+  },
+  ms: {
+    code: 'BM', name: 'Bahasa Malaysia',
+    greet: 'R Block Buddy',
+    sub: 'Kelab robotik · ROBOTIS R+ Ollo',
+    pick: 'Apa yang anda perlukan?',
+    build: 'Bina', buildSub: 'Tuliskan atur cara untuk saya',
+    debug: 'Baiki', debugSub: 'Punya saya tak jalan',
+    lang: 'Bahasa',
+    langNote: 'Disimpan pada peranti ini',
+    askTitle: 'Baiki',
+    askQ: 'Apa yang sepatutnya robot buat?',
+    ph: 'cth. ikut garisan hitam dan berhenti sebelum dinding',
+    addPhoto: 'Tambah gambar',
+    photoHint: 'Susun atur trek atau robot anda',
+    attached: 'Gambar dilampirkan',
+    remove: 'Buang',
+    go: 'Tanya',
+    queueTitle: 'Sedang diproses',
+    inQueue: 'Anda berada dalam barisan',
+    position: 'Kedudukan',
+    ahead: 'di hadapan anda',
+    est: 'Anggaran menunggu',
+    stages: ['Soalan diterima', 'Membaca gambar anda', 'Memilih blok', 'Menyemak setiap nama blok'],
+    keep: 'Teruskan membina. Jawapan anda akan disimpan di sini.',
+    summary: 'Ringkasan',
+    program: 'Atur cara',
+    placed: 'dipasang',
+    nextUp: 'Seterusnya',
+    tapHint: 'Ketik setiap baris selepas anda pasang dalam R+',
+    note: 'Nota',
+    engNote: 'Nama blok kekal dalam Bahasa Inggeris — itulah yang R+ papar',
+    wrong: 'Apa yang salah',
+    allDone: 'Semua blok telah dipasang',
+  },
+  zh: {
+    code: '中文', name: '中文',
+    greet: 'R Block 助手',
+    sub: '机器人社团 · ROBOTIS R+ Ollo',
+    pick: '你需要什么帮助？',
+    build: '编写', buildSub: '帮我写一段程序',
+    debug: '排错', debugSub: '我的程序跑不通',
+    lang: '界面语言',
+    langNote: '已保存在本机',
+    askTitle: '编写',
+    askQ: '机器人应该做什么？',
+    ph: '例如：沿黑线行走，遇到墙壁前停下',
+    addPhoto: '添加照片',
+    photoHint: '赛道布局或你的机器人',
+    attached: '已附加照片',
+    remove: '移除',
+    go: '提问',
+    queueTitle: '正在处理',
+    inQueue: '你正在排队中',
+    position: '当前位次',
+    ahead: '人在你前面',
+    est: '预计等待',
+    stages: ['已收到问题', '正在读取照片', '正在挑选积木', '正在核对每个积木名称'],
+    keep: '你可以继续动手，答案会留在这里。',
+    summary: '摘要',
+    program: '程序',
+    placed: '已放置',
+    nextUp: '下一步',
+    tapHint: '每在 R+ 里放好一行就点一下',
+    note: '备注',
+    engNote: '积木名称保持英文 —— R+ 里显示的就是英文',
+    wrong: '问题出在哪里',
+    allDone: '全部积木已放置',
+  },
+};
+
+/* ============================================================================
+   Block data. Slot kinds: 'd' = dropdown choice, 'v' = typed value.
+   Block text is real R Block phrasing and is always English.
+   ========================================================================== */
+const BUILD_PROGRAM = [
+  { i: 0, cat: 'Control',  p: [['t', 'Start Program']] },
+  { i: 0, cat: 'Variable', p: [['t', 'Set the variable'], ['d', 'Speed'], ['t', 'to'], ['v', '40']] },
+  { i: 0, cat: 'Control',  p: [['t', 'Repeat'], ['v', '50'], ['t', 'time(s)']] },
+  { i: 1, cat: 'Sensing',  p: [['t', 'If the'], ['d', 'Left'], ['t', 'IR sensor value'], ['d', '<'], ['v', '45']] },
+  { i: 2, cat: 'Motion',   p: [["t", "Move robot's"], ['d', 'Both wheels'], ['d', 'Forward'], ['t', 'at speed'], ['v', 'Speed']] },
+  { i: 1, cat: 'Control',  p: [['t', 'Else']] },
+  { i: 2, cat: 'Motion',   p: [["t", "Move robot's"], ['d', 'Right wheel'], ['d', 'Backward'], ['t', 'at speed'], ['v', '20']] },
+  { i: 2, cat: 'Sound',    p: [['t', 'Play sound'], ['d', 'Beep 2']] },
+  { i: 1, cat: 'Variable', p: [['t', 'Add the variable'], ['d', 'Speed'], ['t', 'by'], ['v', '2']] },
+  { i: 0, cat: 'Screen',   p: [['t', 'Print'], ['v', 'DONE'], ['t', 'on screen']] },
+];
+
+const DEBUG_PROGRAM = [
+  { i: 0, cat: 'Control',  p: [['t', 'Start Program']] },
+  { i: 0, cat: 'Control',  p: [['t', 'Repeat'], ['v', '100'], ['t', 'time(s)']] },
+  { i: 1, cat: 'Sensing',  p: [['t', 'If the'], ['d', 'Centre'], ['t', 'IR sensor value'], ['d', '>'], ['v', '60']] },
+  { i: 2, cat: 'Motion',   p: [["t", "Move robot's"], ['d', 'Both wheels'], ['d', 'Stop'], ['t', 'at speed'], ['v', '0']] },
+  { i: 2, cat: '—',        p: [['t', 'Wait until Line sensor is Black']], bad: true,
+    why: 'No such block in R Block. Use a Sensing test instead:',
+    fix: 'If the [Left] IR sensor value [<] [Value]' },
+  { i: 1, cat: 'Control',  p: [['t', 'Else']] },
+  { i: 2, cat: 'Motion',   p: [["t", "Move robot's"], ['d', 'Both wheels'], ['d', 'Forward'], ['t', 'at speed'], ['v', '35']] },
+];
+
+/* ============================================================================
+   Small shared pieces
+   ========================================================================== */
+function CatChip({ cat }) {
+  const c = CAT[cat] || { fg: C.danger, bg: C.dangerWash };
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700, letterSpacing: 0.7, textTransform: 'uppercase',
+      color: c.fg, background: c.bg, padding: '2px 7px', borderRadius: 5,
+      whiteSpace: 'nowrap', lineHeight: 1.5,
+    }}>{cat}</span>
+  );
+}
+
+/* Inline slots. Transfer note: this is Kitchen Stories' "ingredients repeated
+   inside the step" — everything the block needs lives in the block's own line. */
+function BlockText({ parts, dim, bad }) {
+  return (
+    <span style={{
+      fontFamily: MONO, fontSize: 14, lineHeight: 1.62,
+      color: bad ? C.danger : (dim ? C.inkSoft : C.ink),
+      fontWeight: 500, letterSpacing: -0.1,
+      display: 'inline', wordBreak: 'break-word',
+    }}>
+      {parts.map((seg, k) => {
+        const [kind, val] = seg;
+        if (kind === 't') return <span key={k}>{val}{' '}</span>;
+        if (kind === 'd') return (
+          <span key={k} style={{
+            display: 'inline-block', margin: '0 3px 0 0',
+            background: dim ? 'oklch(0.955 0.004 80)' : 'oklch(0.925 0.012 250)',
+            color: dim ? C.inkSoft : 'oklch(0.320 0.090 250)',
+            padding: '1px 6px 1px 7px', borderRadius: 999,
+            fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap',
+          }}>{val}<span style={{ fontSize: 9, opacity: 0.65, marginLeft: 4 }}>▾</span></span>
+        );
+        return (
+          <span key={k} style={{
+            display: 'inline-block', margin: '0 3px 0 0',
+            background: dim ? 'transparent' : C.card,
+            border: `1.5px solid ${dim ? C.hairSoft : 'oklch(0.800 0.050 78)'}`,
+            color: dim ? C.inkSoft : 'oklch(0.380 0.075 70)',
+            padding: '0px 6px', borderRadius: 4,
+            fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap',
+          }}>{val}</span>
+        );
+      })}
+    </span>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   BlockPath — THE HERO.
+   The spine is filled behind you, hairline ahead of you. Indentation moves the
+   spine right, so nesting is a physical step sideways on a walked trail.
+   ------------------------------------------------------------------------- */
+function BlockPath({ program, done, toggle, nextIdx, lang }) {
+  const t = T[lang];
+  return (
+    <div style={{ padding: '0 14px 8px 14px' }}>
+      {program.map((b, idx) => {
+        const isDone = done.has(idx);
+        const isNext = idx === nextIdx;
+        const pad = b.i * 20;
+        const bad = !!b.bad;
+        return (
+          <div key={idx} style={{ display: 'flex', alignItems: 'stretch', paddingLeft: pad }}>
+
+            {/* the spine + node */}
+            <div style={{ width: 26, position: 'relative', flexShrink: 0 }}>
+              <div style={{
+                position: 'absolute', left: 12, top: 0, bottom: 0, width: 2,
+                background: isDone ? C.accent : C.hair,
+              }} />
+              {idx === 0 && <div style={{ position: 'absolute', left: 12, top: 0, height: 14, width: 2, background: C.card }} />}
+              {idx === program.length - 1 && <div style={{ position: 'absolute', left: 12, bottom: 0, height: 'calc(100% - 26px)', width: 2, background: C.card }} />}
+              <div style={{
+                position: 'absolute', left: 4, top: 8, width: 18, height: 18,
+                borderRadius: 999, zIndex: 2,
+                background: bad ? C.dangerWash : (isDone ? C.accent : C.card),
+                border: `2px solid ${bad ? C.danger : (isDone ? C.accent : (isNext ? C.accent : C.hair))}`,
+                boxShadow: isNext && !isDone ? `0 0 0 4px ${C.accentWash}` : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {isDone && !bad && (
+                  <svg width="10" height="10" viewBox="0 0 10 10">
+                    <path d="M1.6 5.2 L3.9 7.4 L8.4 2.6" stroke="#fff" strokeWidth="1.9" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+                {bad && <span style={{ fontSize: 11, fontWeight: 800, color: C.danger, lineHeight: 1 }}>!</span>}
+              </div>
+            </div>
+
+            {/* the line card */}
+            <div
+              onClick={() => !bad && toggle(idx)}
+              data-blockline={idx}
+              style={{
+                flex: 1, minWidth: 0, cursor: bad ? 'default' : 'pointer',
+                margin: '3px 0 3px 4px', padding: '6px 10px 7px 10px',
+                borderRadius: 11,
+                background: bad ? C.dangerWash : (isDone ? 'oklch(0.975 0.004 80)' : C.card),
+                border: `1px solid ${bad ? C.dangerEdge : (isNext && !isDone ? C.accentEdge : C.hairSoft)}`,
+                boxShadow: isNext && !isDone && !bad ? '0 3px 12px oklch(0.640 0.155 52 / 0.13)' : 'none',
+                userSelect: 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                {bad
+                  ? <span style={{
+                      fontSize: 10, fontWeight: 800, letterSpacing: 0.7, textTransform: 'uppercase',
+                      color: C.danger, background: 'oklch(0.930 0.045 25)', padding: '2px 7px', borderRadius: 5,
+                    }}>Not a real block</span>
+                  : <CatChip cat={b.cat} />}
+                <span style={{ flex: 1 }} />
+                {isNext && !isDone && !bad && (
+                  <span style={{
+                    fontSize: 9.5, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+                    color: C.accentDeep,
+                  }}>{t.nextUp}</span>
+                )}
+                <span style={{
+                  fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                  color: isDone ? C.accentDeep : C.inkFaint,
+                }}>{String(idx + 1).padStart(2, '0')}</span>
+              </div>
+              <BlockText parts={b.p} dim={isDone} bad={bad} />
+              {bad && (
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.dangerEdge}` }}>
+                  <div style={{ fontSize: 12, color: 'oklch(0.400 0.100 25)', lineHeight: 1.45 }}>{b.why}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 13, color: C.ink, marginTop: 5, fontWeight: 600 }}>{b.fix}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Persistent transcribe-mode header — direct transfer of the cooking-mode
+   step counter that is never allowed to scroll away. */
+function ProgressHeader({ label, doneCount, total, lang, tint, hint }) {
+  const t = T[lang];
+  const pct = Math.round((doneCount / total) * 100);
+  return (
+    <div style={{
+      position: 'sticky', top: 0, zIndex: 5,
+      background: 'oklch(0.995 0.002 90 / 0.94)', backdropFilter: 'blur(12px)',
+      borderBottom: `1px solid ${C.hair}`, padding: '9px 16px 8px 16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkMid }}>{label}</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 26, fontWeight: 250, letterSpacing: -1, color: tint || C.accentDeep, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{doneCount}</span>
+        <span style={{ fontSize: 14, fontWeight: 400, color: C.inkSoft }}>/ {total} {t.placed}</span>
+      </div>
+      <div style={{ height: 4, background: C.hairSoft, borderRadius: 999, marginTop: 7, overflow: 'hidden' }}>
+        <div style={{ width: pct + '%', height: '100%', background: tint || C.accent, borderRadius: 999, transition: 'width .22s ease' }} />
+      </div>
+      {hint && (
+        <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 6, lineHeight: 1.3 }}>{hint}</div>
+      )}
+    </div>
+  );
+}
+
+function SectionLabel({ children, color }) {
+  return (
+    <div style={{
+      fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase',
+      color: color || C.inkSoft, margin: '18px 16px 7px 16px',
+    }}>{children}</div>
+  );
+}
+
+function LangRow({ lang, setLang, note }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {['en', 'ms', 'zh'].map(k => {
+          const on = k === lang;
+          return (
+            <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+              flex: 1, padding: '11px 4px', borderRadius: 12, cursor: 'pointer',
+              border: `1.5px solid ${on ? C.accent : C.hair}`,
+              background: on ? C.accentWash : C.card,
+              color: on ? C.accentDeep : C.inkMid,
+              fontWeight: on ? 700 : 500, fontSize: 13.5,
+              fontFamily: 'inherit', transition: 'all .15s',
+            }}>{T[k].name}</button>
+          );
+        })}
+      </div>
+      {note && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 8, textAlign: 'center' }}>{note}</div>}
+    </div>
+  );
+}
+
+/* Thumbnail placeholder — honest, no stock photo, no drawn robot. */
+function PhotoThumb({ size = 62 }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 10, flexShrink: 0,
+      background: 'repeating-linear-gradient(45deg, oklch(0.905 0.010 78) 0 6px, oklch(0.945 0.008 78) 6px 12px)',
+      border: `1px solid ${C.hair}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="oklch(0.560 0.014 62)" strokeWidth="1.6">
+        <rect x="3" y="5" width="18" height="14" rx="2.5" />
+        <circle cx="12" cy="12" r="3.2" />
+        <path d="M8 5l1.4-2h5.2L16 5" />
+      </svg>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 1 — Entry. The fork, built like Kitchen Stories' Start Cooking
+   commitment target: two full-bleed choices, not a menu.
+   ========================================================================== */
+function ScreenEntry() {
+  const [lang, setLang] = useState('en');
+  const [mode, setMode] = useState('build');
+  const t = T[lang];
+
+  const Fork = ({ id, title, sub, active, glyph }) => (
+    <button data-mode={id} onClick={() => setMode(id)} style={{
+      width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+      padding: '24px 18px', borderRadius: 20, marginBottom: 14,
+      border: `2px solid ${active ? C.accent : C.hair}`,
+      background: active ? C.accentWash : C.card,
+      boxShadow: active ? '0 8px 26px oklch(0.640 0.155 52 / 0.18)' : '0 1px 2px oklch(0.2 0 0 / 0.04)',
+      display: 'flex', alignItems: 'center', gap: 14, transition: 'all .16s',
+    }}>
+      <div style={{
+        width: 52, height: 52, borderRadius: 15, flexShrink: 0,
+        background: active ? C.accent : 'oklch(0.955 0.006 78)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>{glyph(active)}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 23, fontWeight: 600, letterSpacing: -0.4, color: active ? C.accentDeep : C.ink, lineHeight: 1.15 }}>{title}</div>
+        <div style={{ fontSize: 14, color: active ? 'oklch(0.480 0.075 50)' : C.inkSoft, marginTop: 3 }}>{sub}</div>
+      </div>
+    </button>
+  );
+
+  const buildGlyph = (a) => (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={a ? '#fff' : C.inkMid} strokeWidth="2" strokeLinecap="round">
+      <path d="M5 6h11" /><path d="M9 12h10" /><path d="M13 18h6" />
+      <circle cx="5" cy="6" r="0.1" />
+    </svg>
+  );
+  const debugGlyph = (a) => (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={a ? '#fff' : C.inkMid} strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="8.2" /><path d="M12 7.6v5" /><path d="M12 16.2h.01" />
+    </svg>
+  );
+
+  return (
+    <div style={{ background: C.appBg, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '20px 18px 0 18px' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: C.accentDeep }}>{t.greet}</div>
+        <div style={{ fontSize: 13, color: C.inkSoft, marginTop: 3 }}>{t.sub}</div>
+      </div>
+
+      <div style={{ padding: '24px 18px 0 18px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ fontSize: 27, fontWeight: 300, letterSpacing: -0.7, color: C.ink, marginBottom: 18, lineHeight: 1.2 }}>{t.pick}</div>
+        <Fork id="build" title={t.build} sub={t.buildSub} active={mode === 'build'} glyph={buildGlyph} />
+        <Fork id="debug" title={t.debug} sub={t.debugSub} active={mode === 'debug'} glyph={debugGlyph} />
+      </div>
+
+      <div style={{ padding: '10px 18px 22px 18px' }}>
+        <div style={{ height: 1, background: C.hair, marginBottom: 16 }} />
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase', color: C.inkSoft, marginBottom: 9 }}>{t.lang}</div>
+        <LangRow lang={lang} setLang={setLang} note={t.langNote} />
+        <button style={{
+          width: '100%', marginTop: 16, padding: '16px', borderRadius: 15, border: 'none',
+          background: C.accent, color: '#fff', fontSize: 17, fontWeight: 650,
+          fontFamily: 'inherit', cursor: 'pointer', letterSpacing: -0.2,
+          boxShadow: '0 6px 18px oklch(0.640 0.155 52 / 0.30)',
+        }}>{mode === 'build' ? t.build : t.debug} →</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 2 — Ask, with the attached-photo state live.
+   ========================================================================== */
+function ScreenAsk() {
+  const [lang, setLang] = useState('en');
+  const [photo, setPhoto] = useState(true);
+  const t = T[lang];
+  const text = {
+    en: 'My robot has to follow the black line then stop before it hits the wall. What blocks do I need?',
+    ms: 'Robot saya kena ikut garisan hitam kemudian berhenti sebelum langgar dinding. Blok apa yang saya perlukan?',
+    zh: '我的机器人要沿黑线走，撞到墙之前停下来。我需要哪些积木？',
+  }[lang];
+
+  return (
+    <div style={{ background: C.appBg, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        padding: '12px 16px', borderBottom: `1px solid ${C.hair}`, background: C.card,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <span style={{ fontSize: 20, color: C.inkSoft, lineHeight: 1 }}>‹</span>
+        <span style={{
+          fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.accentDeep, background: C.accentWash, padding: '3px 9px', borderRadius: 6,
+        }}>{t.askTitle}</span>
+        <span style={{ flex: 1 }} />
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['en', 'ms', 'zh'].map(k => (
+            <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+              padding: '4px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${k === lang ? C.accent : C.hair}`,
+              background: k === lang ? C.accentWash : 'transparent',
+              color: k === lang ? C.accentDeep : C.inkSoft,
+              fontSize: 12, fontWeight: k === lang ? 700 : 500,
+            }}>{T[k].code}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: '22px 16px 0 16px', flex: 1 }}>
+        <div style={{ fontSize: 24, fontWeight: 300, letterSpacing: -0.6, color: C.ink, lineHeight: 1.25 }}>{t.askQ}</div>
+
+        <div style={{
+          marginTop: 16, background: C.card, border: `1px solid ${C.hair}`,
+          borderRadius: 16, padding: '14px 14px 12px 14px',
+          boxShadow: '0 2px 10px oklch(0.2 0 0 / 0.035)',
+        }}>
+          <div style={{ fontSize: 15.5, lineHeight: 1.55, color: C.ink, minHeight: 92 }}>
+            {text}<span style={{ display: 'inline-block', width: 2, height: 17, background: C.accent, verticalAlign: -3, marginLeft: 1 }} />
+          </div>
+          <div style={{ height: 1, background: C.hairSoft, margin: '10px -14px 10px -14px' }} />
+
+          {photo ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <PhotoThumb />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{t.attached}</div>
+                <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>course-layout.jpg · 1.4 MB</div>
+              </div>
+              <button data-photo="off" onClick={() => setPhoto(false)} style={{
+                border: `1px solid ${C.hair}`, background: 'transparent', color: C.inkMid,
+                fontSize: 12.5, fontWeight: 600, padding: '6px 11px', borderRadius: 9,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>{t.remove}</button>
+            </div>
+          ) : (
+            <button data-photo="on" onClick={() => setPhoto(true)} style={{
+              display: 'flex', alignItems: 'center', gap: 11, width: '100%',
+              border: `1.5px dashed ${C.hair}`, background: 'transparent',
+              borderRadius: 12, padding: '11px 12px', cursor: 'pointer',
+              fontFamily: 'inherit', textAlign: 'left',
+            }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 9, background: 'oklch(0.955 0.006 78)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.inkMid} strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 6v12M6 12h12" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{t.addPhoto}</div>
+                <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 1 }}>{t.photoHint}</div>
+              </div>
+            </button>
+          )}
+        </div>
+
+        <div style={{
+          marginTop: 14, display: 'flex', gap: 8, alignItems: 'flex-start',
+          background: 'oklch(0.972 0.006 80)', border: `1px solid ${C.hairSoft}`,
+          borderRadius: 12, padding: '10px 12px',
+        }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: C.inkMid, background: C.card, border: `1px solid ${C.hair}`, borderRadius: 4, padding: '1px 5px', marginTop: 1 }}>EN</div>
+          <div style={{ fontSize: 12.5, color: C.inkMid, lineHeight: 1.45 }}>{t.engNote}</div>
+        </div>
+      </div>
+
+      <div style={{ padding: '0 16px 22px 16px' }}>
+        <button style={{
+          width: '100%', padding: '16px', borderRadius: 15, border: 'none',
+          background: C.accent, color: '#fff', fontSize: 17, fontWeight: 650,
+          fontFamily: 'inherit', cursor: 'pointer',
+          boxShadow: '0 6px 18px oklch(0.640 0.155 52 / 0.30)',
+        }}>{t.go} →</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 3 — Working / queue. Honest position + wait, staged progress so the
+   wait is accounted for rather than stalled.
+   ========================================================================== */
+function ScreenQueue() {
+  const [lang, setLang] = useState('zh');
+  const [stage, setStage] = useState(2);
+  const t = T[lang];
+
+  return (
+    <div style={{ background: C.appBg, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        padding: '12px 16px', borderBottom: `1px solid ${C.hair}`, background: C.card,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkMid }}>{t.queueTitle}</span>
+        <span style={{ flex: 1 }} />
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['en', 'ms', 'zh'].map(k => (
+            <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+              padding: '4px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${k === lang ? C.accent : C.hair}`,
+              background: k === lang ? C.accentWash : 'transparent',
+              color: k === lang ? C.accentDeep : C.inkSoft,
+              fontSize: 12, fontWeight: k === lang ? 700 : 500,
+            }}>{T[k].code}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: '26px 18px 0 18px', flex: 1 }}>
+        <div style={{
+          background: C.card, border: `1px solid ${C.hair}`, borderRadius: 20,
+          padding: '20px 18px', boxShadow: '0 2px 12px oklch(0.2 0 0 / 0.04)',
+        }}>
+          <div style={{ fontSize: 13, color: C.inkSoft, letterSpacing: 0.2 }}>{t.inQueue}</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginTop: 8 }}>
+            <div>
+              <div style={{ fontSize: 62, fontWeight: 200, letterSpacing: -3, color: C.accent, lineHeight: 0.9, fontVariantNumeric: 'tabular-nums' }}>2</div>
+              <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 6 }}>{t.position}</div>
+            </div>
+            <div style={{ flex: 1, paddingBottom: 6 }}>
+              <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div key={i} style={{
+                    flex: 1, height: 30, borderRadius: 7,
+                    background: i < 1 ? C.accent : (i === 1 ? C.accentEdge : 'oklch(0.945 0.005 74)'),
+                  }} />
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: C.inkSoft }}>1 {t.ahead}</div>
+            </div>
+          </div>
+
+          <div style={{ height: 1, background: C.hairSoft, margin: '18px -18px 16px -18px' }} />
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t.est}</span>
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 30, fontWeight: 250, letterSpacing: -1, color: C.ink, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>18–26</span>
+            <span style={{ fontSize: 14, color: C.inkSoft }}>s</span>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 24 }}>
+          {t.stages.map((s, i) => {
+            const isDone = i < stage;
+            const isNow = i === stage;
+            return (
+              <div key={i} data-stage={i} onClick={() => setStage(i)} style={{ display: 'flex', gap: 12, cursor: 'pointer' }}>
+                <div style={{ width: 20, position: 'relative', flexShrink: 0 }}>
+                  {i < t.stages.length - 1 && (
+                    <div style={{ position: 'absolute', left: 9, top: 18, bottom: -4, width: 2, background: isDone ? C.accent : C.hair }} />
+                  )}
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 999, marginTop: 4, position: 'relative', zIndex: 2,
+                    background: isDone ? C.accent : C.card,
+                    border: `2px solid ${isDone || isNow ? C.accent : C.hair}`,
+                    boxShadow: isNow ? `0 0 0 5px ${C.accentWash}` : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {isDone && (
+                      <svg width="10" height="10" viewBox="0 0 10 10">
+                        <path d="M1.6 5.2 L3.9 7.4 L8.4 2.6" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                    {isNow && <div style={{ width: 7, height: 7, borderRadius: 999, background: C.accent }} />}
+                  </div>
+                </div>
+                <div style={{ paddingBottom: 18, flex: 1 }}>
+                  <div style={{
+                    fontSize: 15, lineHeight: 1.35, marginTop: 4,
+                    color: isNow ? C.ink : (isDone ? C.inkMid : C.inkFaint),
+                    fontWeight: isNow ? 650 : 450,
+                  }}>{s}</div>
+                  {isNow && <div style={{ fontSize: 12, color: C.accentDeep, marginTop: 3 }}>···</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ padding: '0 18px 22px 18px' }}>
+        <div style={{
+          background: 'oklch(0.972 0.006 80)', border: `1px solid ${C.hairSoft}`,
+          borderRadius: 12, padding: '12px 14px', fontSize: 13, color: C.inkMid, lineHeight: 1.5,
+        }}>{t.keep}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 4 — Answer, Build. The block path is the hero.
+   ========================================================================== */
+function ScreenBuild() {
+  const [lang, setLang] = useState('en');
+  const [done, setDone] = useState(new Set([0, 1, 2]));
+  const t = T[lang];
+  const toggle = (i) => setDone(prev => {
+    const n = new Set(prev);
+    n.has(i) ? n.delete(i) : n.add(i);
+    return n;
+  });
+  const nextIdx = useMemo(() => {
+    for (let i = 0; i < BUILD_PROGRAM.length; i++) if (!done.has(i)) return i;
+    return -1;
+  }, [done]);
+
+  const summary = {
+    en: 'Read the left IR sensor inside a loop. While it sees the dark line, drive forward; when it loses the line, nudge one wheel back until it finds it again.',
+    ms: 'Baca sensor IR kiri di dalam gelung. Selagi ia nampak garisan gelap, gerak ke hadapan; bila hilang garisan, undurkan satu roda sehingga jumpa semula.',
+    zh: '在循环里读取左侧红外传感器。看到黑线就前进；丢线时让一侧轮子后退，直到重新找到线。',
+  }[lang];
+  const note = {
+    en: 'Raise Speed slowly — above 60 the sensor misses the line on tight curves.',
+    ms: 'Naikkan Speed perlahan-lahan — melebihi 60 sensor akan terlepas garisan di selekoh tajam.',
+    zh: 'Speed 要慢慢加 —— 超过 60 时急弯处传感器会丢线。',
+  }[lang];
+
+  return (
+    <div style={{ background: C.card, minHeight: '100%' }}>
+      <div style={{
+        padding: '11px 16px', background: C.card,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <span style={{
+          fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.accentDeep, background: C.accentWash, padding: '3px 9px', borderRadius: 6,
+        }}>{t.build}</span>
+        <span style={{ flex: 1 }} />
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['en', 'ms', 'zh'].map(k => (
+            <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+              padding: '4px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${k === lang ? C.accent : C.hair}`,
+              background: k === lang ? C.accentWash : 'transparent',
+              color: k === lang ? C.accentDeep : C.inkSoft,
+              fontSize: 12, fontWeight: k === lang ? 700 : 500,
+            }}>{T[k].code}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: '0 16px 4px 16px' }}>
+        <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase', color: C.inkSoft, marginBottom: 4 }}>{t.summary}</div>
+        <div style={{ fontSize: 14.5, lineHeight: 1.45, color: C.ink, fontWeight: 400 }}>{summary}</div>
+      </div>
+
+      <div style={{ height: 10 }} />
+      <ProgressHeader label={t.program} doneCount={done.size} total={BUILD_PROGRAM.length} lang={lang} hint={t.tapHint} />
+      <div style={{ height: 6 }} />
+
+      <BlockPath program={BUILD_PROGRAM} done={done} toggle={toggle} nextIdx={nextIdx} lang={lang} />
+
+      <div style={{ padding: '4px 16px 26px 16px' }}>
+        {nextIdx === -1 && (
+          <div style={{
+            background: C.doneWash, border: `1px solid oklch(0.870 0.045 155)`, borderRadius: 12,
+            padding: '11px 13px', fontSize: 14, fontWeight: 650, color: C.done, marginBottom: 12,
+          }}>✓ {t.allDone}</div>
+        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.9, textTransform: 'uppercase', color: C.inkFaint, marginTop: 2, flexShrink: 0 }}>{t.note}</div>
+          <div style={{ fontSize: 13.5, color: C.inkMid, lineHeight: 1.5 }}>{note}</div>
+        </div>
+        <div style={{
+          marginTop: 14, display: 'flex', gap: 8, alignItems: 'center',
+          borderTop: `1px solid ${C.hairSoft}`, paddingTop: 12,
+        }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: C.inkMid, border: `1px solid ${C.hair}`, borderRadius: 4, padding: '1px 5px' }}>EN</div>
+          <div style={{ fontSize: 12, color: C.inkFaint, lineHeight: 1.4 }}>{t.engNote}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   SCREEN 5 — Answer, Debug. Bahasa Malaysia interface, English block names.
+   Includes the "what was wrong" region and the red invalid-block state.
+   ========================================================================== */
+function ScreenDebug() {
+  const [lang, setLang] = useState('ms');
+  const [done, setDone] = useState(new Set([0, 1]));
+  const t = T[lang];
+  const toggle = (i) => setDone(prev => {
+    const n = new Set(prev);
+    n.has(i) ? n.delete(i) : n.add(i);
+    return n;
+  });
+  const nextIdx = useMemo(() => {
+    for (let i = 0; i < DEBUG_PROGRAM.length; i++) {
+      if (DEBUG_PROGRAM[i].bad) continue;
+      if (!done.has(i)) return i;
+    }
+    return -1;
+  }, [done]);
+  const total = DEBUG_PROGRAM.filter(b => !b.bad).length;
+
+  const wrong = {
+    en: 'Your loop reads the IR sensor once before it starts, so the value never updates. The robot keeps driving on a stale reading and rolls past the line.',
+    ms: 'Gelung anda membaca sensor IR sekali sahaja sebelum bermula, jadi nilainya tidak dikemas kini. Robot terus bergerak dengan bacaan lama dan terlepas garisan.',
+    zh: '你的循环在开始前只读了一次红外传感器，数值之后不再更新。机器人一直用旧读数行驶，于是冲过了黑线。',
+  }[lang];
+  const summary = {
+    en: 'Move the sensor test inside the Repeat block so it is re-read on every pass.',
+    ms: 'Pindahkan ujian sensor ke dalam blok Repeat supaya ia dibaca semula pada setiap pusingan.',
+    zh: '把传感器判断移到 Repeat 里面，让它每一轮都重新读取。',
+  }[lang];
+
+  return (
+    <div style={{ background: C.card, minHeight: '100%' }}>
+      <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{
+          fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: 'uppercase',
+          color: C.danger, background: C.dangerWash, padding: '3px 9px', borderRadius: 6,
+        }}>{t.debug}</span>
+        <span style={{ flex: 1 }} />
+        <div style={{ display: 'flex', gap: 4 }}>
+          {['en', 'ms', 'zh'].map(k => (
+            <button key={k} data-lang={k} onClick={() => setLang(k)} style={{
+              padding: '4px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${k === lang ? C.accent : C.hair}`,
+              background: k === lang ? C.accentWash : 'transparent',
+              color: k === lang ? C.accentDeep : C.inkSoft,
+              fontSize: 12, fontWeight: k === lang ? 700 : 500,
+            }}>{T[k].code}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* what was wrong */}
+      <div style={{ padding: '0 16px' }}>
+        <div style={{
+          background: C.dangerWash, border: `1px solid ${C.dangerEdge}`, borderRadius: 14,
+          padding: '11px 13px',
+        }}>
+          <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.danger, marginBottom: 4 }}>{t.wrong}</div>
+          <div style={{ fontSize: 14, lineHeight: 1.45, color: 'oklch(0.330 0.075 30)' }}>{wrong}</div>
+          <div style={{ height: 1, background: C.dangerEdge, margin: '9px -13px 8px -13px' }} />
+          <div style={{ fontSize: 14, lineHeight: 1.45, color: C.ink, fontWeight: 600 }}>{summary}</div>
+        </div>
+      </div>
+
+      <div style={{ height: 10 }} />
+      <ProgressHeader label={t.program} doneCount={done.size} total={total} lang={lang} hint={t.tapHint} />
+      <div style={{ height: 6 }} />
+
+      <BlockPath program={DEBUG_PROGRAM} done={done} toggle={toggle} nextIdx={nextIdx} lang={lang} />
+
+      <div style={{ padding: '4px 16px 26px 16px' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', borderTop: `1px solid ${C.hairSoft}`, paddingTop: 12 }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: C.inkMid, border: `1px solid ${C.hair}`, borderRadius: 4, padding: '1px 5px' }}>EN</div>
+          <div style={{ fontSize: 12, color: C.inkFaint, lineHeight: 1.4 }}>{t.engNote}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   Presentation surface
+   ========================================================================== */
+function Phone({ caption, children, battery = 78, time = '9:41' }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{
+        fontStyle: 'italic', fontSize: 14.5, color: 'oklch(0.420 0.020 62)',
+        marginBottom: 12, textAlign: 'center', maxWidth: 380, lineHeight: 1.4,
+      }}>{caption}</div>
+      <IosFrame time={time} battery={battery}>{children}</IosFrame>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <div style={{ padding: '46px 40px 70px 40px' }}>
+      <div style={{ maxWidth: 1500, margin: '0 auto 40px auto' }}>
+        <div style={{
+          fontSize: 11.5, fontWeight: 800, letterSpacing: 2.4, textTransform: 'uppercase',
+          color: 'oklch(0.470 0.135 48)',
+        }}>Benchmark transfer · Kitchen Stories (Apple Design Award 2017)</div>
+        <div style={{
+          fontSize: 42, fontWeight: 250, letterSpacing: -1.4, marginTop: 10,
+          color: 'oklch(0.245 0.015 60)', lineHeight: 1.1,
+        }}>R Block Coding Buddy</div>
+        <div style={{
+          fontSize: 16, color: 'oklch(0.455 0.014 60)', marginTop: 12,
+          maxWidth: 720, lineHeight: 1.55,
+        }}>
+          Kitchen Stories solved place-keeping for someone whose hands are busy: a cooking mode
+          with a step counter that never scrolls away, and every ingredient repeated inside the step
+          that needs it. Transferred here, that becomes a <strong style={{ fontWeight: 650 }}>transcribe mode</strong> — a
+          vertical spine that fills in behind you as you place each R Block, indenting sideways to show nesting,
+          with every dropdown and typed value living inside its own block line.
+        </div>
+        <div style={{ height: 1, background: 'oklch(0.885 0.010 74)', marginTop: 30 }} />
+      </div>
+
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 44, justifyContent: 'center',
+        maxWidth: 1520, margin: '0 auto',
+      }}>
+        <Phone caption="1 · Entry — the fork, not a menu. Tap Build/Debug, tap a language." time="9:41" battery={78}>
+          <ScreenEntry />
+        </Phone>
+        <Phone caption="2 · Ask — shown in the photo-attached state. Tap Remove to see the empty state." time="9:42" battery={77}>
+          <ScreenAsk />
+        </Phone>
+        <Phone caption="3 · Working — queue position and an honest range, in 中文. Tap a stage." time="9:42" battery={77}>
+          <ScreenQueue />
+        </Phone>
+        <Phone caption="4 · Answer, Build — the hero. Tap any line to mark it placed." time="9:43" battery={75}>
+          <ScreenBuild />
+        </Phone>
+        <Phone caption="5 · Answer, Debug — Bahasa Malaysia interface, English block names, one block rejected in red." time="9:51" battery={71}>
+          <ScreenDebug />
+        </Phone>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

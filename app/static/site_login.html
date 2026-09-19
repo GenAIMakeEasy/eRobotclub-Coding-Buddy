@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>R Block Coding Buddy</title>
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: oklch(0.968 0.006 78);
+    color: oklch(0.245 0.015 60);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 380px; background: #fff; border: 1px solid oklch(0.905 0.007 70);
+    border-radius: 16px; padding: 28px; box-shadow: 0 2px 14px oklch(0.2 0 0 / 0.06);
+    text-align: center;
+  }
+  h1 { font-size: 20px; font-weight: 650; margin: 0 0 4px 0; }
+  .sub { font-size: 13px; color: oklch(0.615 0.012 62); margin-bottom: 22px; }
+  input[type=password] {
+    width: 100%; padding: 13px 14px; border-radius: 11px; border: 1.5px solid oklch(0.905 0.007 70);
+    font-size: 16px; font-family: inherit; outline: none; background: oklch(0.985 0.004 84);
+    text-align: center;
+  }
+  input:focus { border-color: oklch(0.640 0.155 52); }
+  button {
+    width: 100%; margin-top: 14px; padding: 13px; border-radius: 11px; border: none;
+    background: oklch(0.640 0.155 52); color: #fff; font-size: 15px; font-weight: 650;
+    font-family: inherit; cursor: pointer;
+  }
+  button:disabled { background: oklch(0.905 0.007 70); color: oklch(0.740 0.010 65); cursor: default; }
+  .err {
+    margin-top: 14px; padding: 9px 12px; border-radius: 10px; font-size: 13px; display: none;
+    background: oklch(0.963 0.026 25); color: oklch(0.330 0.075 30); border: 1px solid oklch(0.855 0.090 25);
+  }
+  .err.show { display: block; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>R Block Coding Buddy</h1>
+  <div class="sub">Robotics club · ROBOTIS R+ Ollo</div>
+  <form id="loginForm">
+    <input type="password" id="password" placeholder="Password" autofocus />
+    <button type="submit" id="submitBtn">Enter</button>
+  </form>
+  <div class="err" id="err">Wrong password — try again.</div>
+</div>
+<script>
+  const form = document.getElementById('loginForm');
+  const err = document.getElementById('err');
+  const btn = document.getElementById('submitBtn');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = document.getElementById('password').value;
+    btn.disabled = true;
+    err.className = 'err';
+    try {
+      const res = await fetch('/site-login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        // The server just set the access cookie -- reload lands back on
+        // whatever page/app was requested, now past the gate.
+        window.location.reload();
+        return;
+      }
+      err.className = 'err show';
+    } catch (e) {
+      err.textContent = 'Could not reach the server.';
+      err.className = 'err show';
+    }
+    btn.disabled = false;
+  });
+</script>
+</body>
+</html>

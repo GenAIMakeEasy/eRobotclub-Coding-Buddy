@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>R Block Coding Buddy — Admin</title>
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: oklch(0.968 0.006 78);
+    color: oklch(0.245 0.015 60);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+    display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px;
+  }
+  .card {
+    width: 100%; max-width: 440px; background: #fff; border: 1px solid oklch(0.905 0.007 70);
+    border-radius: 16px; padding: 24px; box-shadow: 0 2px 14px oklch(0.2 0 0 / 0.06);
+  }
+  .top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  h1 { font-size: 20px; font-weight: 650; margin: 0; }
+  .back { font-size: 13px; color: oklch(0.640 0.155 52); text-decoration: none; font-weight: 600; }
+  .sub { font-size: 13px; color: oklch(0.615 0.012 62); margin-bottom: 20px; }
+  label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.6px; color: oklch(0.455 0.014 60); margin: 16px 0 6px 0; }
+  input[type=password], input[type=text], select {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1.5px solid oklch(0.905 0.007 70);
+    font-size: 15px; font-family: inherit; outline: none; background: oklch(0.985 0.004 84);
+  }
+  select { margin-bottom: 8px; cursor: pointer; }
+  input:focus, select:focus { border-color: oklch(0.640 0.155 52); }
+  input[readonly] { color: oklch(0.615 0.012 62); background: oklch(0.955 0.005 80); cursor: default; }
+  .radio-row { display: flex; gap: 10px; margin-top: 6px; }
+  .radio-option {
+    flex: 1; border: 1.5px solid oklch(0.905 0.007 70); border-radius: 10px; padding: 10px 12px;
+    cursor: pointer; font-size: 14px; text-align: center; user-select: none;
+  }
+  .radio-option.active { border-color: oklch(0.640 0.155 52); background: oklch(0.960 0.028 62); color: oklch(0.470 0.135 48); font-weight: 650; }
+  button {
+    width: 100%; margin-top: 22px; padding: 13px; border-radius: 11px; border: none;
+    background: oklch(0.640 0.155 52); color: #fff; font-size: 15px; font-weight: 650;
+    font-family: inherit; cursor: pointer;
+  }
+  button:disabled { background: oklch(0.905 0.007 70); color: oklch(0.740 0.010 65); cursor: default; }
+  .note { font-size: 12px; color: oklch(0.615 0.012 62); margin-top: 8px; line-height: 1.5; }
+  .status { margin-top: 14px; padding: 10px 12px; border-radius: 10px; font-size: 13px; display: none; }
+  .status.ok { display: block; background: oklch(0.968 0.018 155); color: oklch(0.360 0.075 155); border: 1px solid oklch(0.870 0.045 155); }
+  .status.err { display: block; background: oklch(0.963 0.026 25); color: oklch(0.330 0.075 30); border: 1px solid oklch(0.855 0.090 25); }
+  .key-hint { font-size: 12px; color: oklch(0.615 0.012 62); margin-top: 4px; }
+  #settingsPanel { display: none; }
+  .hair { height: 1px; background: oklch(0.905 0.007 70); margin: 22px 0 16px 0; }
+  .skills-link { display: block; text-align: center; padding: 12px; border-radius: 11px;
+    border: 1.5px solid oklch(0.640 0.155 52); color: oklch(0.640 0.155 52); font-weight: 650;
+    font-size: 14px; text-decoration: none; }
+  .skills-link:hover { background: oklch(0.968 0.018 60); }
+  .server-status { font-size: 12px; color: oklch(0.615 0.012 62); line-height: 1.7; font-variant-numeric: tabular-nums; margin-bottom: 16px; }
+  .server-status .fresh { color: oklch(0.360 0.075 155); font-weight: 650; }
+  .server-status .stale { color: oklch(0.480 0.140 45); font-weight: 650; }
+  button.danger { background: #fff; border: 1.5px solid oklch(0.855 0.090 25); color: oklch(0.510 0.140 30); }
+  button.danger:hover { background: oklch(0.975 0.014 25); }
+  .status.progress { display: flex; align-items: center; gap: 9px; background: oklch(0.968 0.018 155);
+    color: oklch(0.360 0.075 155); border: 1px solid oklch(0.870 0.045 155); }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid oklch(0.870 0.045 155); border-top-color: oklch(0.360 0.075 155);
+    animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="top">
+    <h1>R Block Buddy — Admin</h1>
+    <a href="/" class="back">← Back to app</a>
+  </div>
+  <div class="sub">Switch the model backend and set the cloud API keys.</div>
+  <div class="server-status" id="serverStatus">Checking server status…</div>
+
+  <div id="loginPanel">
+    <label>Admin password</label>
+    <input type="password" id="password" placeholder="Password" />
+    <button id="loginBtn">Log in</button>
+    <div class="note">Set once via ADMIN_PASSWORD in .env — there is no default password.</div>
+    <div class="status" id="loginStatus"></div>
+  </div>
+
+  <div id="settingsPanel">
+    <label>Model backend</label>
+    <div class="radio-row">
+      <div class="radio-option" data-backend="local">Local (Ollama)</div>
+      <div class="radio-option" data-backend="gemini">Gemini (cloud)</div>
+      <div class="radio-option" data-backend="openrouter">OpenRouter (cloud)</div>
+    </div>
+
+    <div id="localFields">
+      <label>Ollama model</label>
+      <input type="text" id="ollamaModel" placeholder="gemma4:12b-it-qat" />
+      <div class="note" id="ollamaHostNote"></div>
+    </div>
+
+    <div id="geminiFields">
+      <label>Gemini model</label>
+      <input type="text" id="geminiModel" placeholder="gemini-flash-latest" />
+
+      <label>Gemini API key</label>
+      <input type="password" id="geminiKey" placeholder="Leave blank to keep the current key" />
+      <div class="key-hint" id="geminiKeyStatus"></div>
+    </div>
+
+    <div id="openrouterFields">
+      <label>OpenRouter model</label>
+      <select id="openrouterModelSelect">
+        <option value="deepseek/deepseek-v4-flash-0731">DeepSeek V4 Flash 0731 — recommended (pinned dated snapshot, not the rolling "latest" alias — ~$0.035/$0.10 per M tokens, cheaper than the three below)</option>
+        <option value="xiaomi/mimo-v2.5">Xiaomi MiMo V2.5 (~$0.14/$0.28 per M tokens, most complete output in testing)</option>
+        <option value="minimax/minimax-m2.5">MiniMax M2.5 (~$0.22/$0.90 per M tokens, smaller context window)</option>
+        <option value="__custom__">Custom / other…</option>
+      </select>
+      <div class="note">The three paid options above were picked from a live 12-model comparison specifically for the admin skill-save block render (app/skills/demo.py) — each converged on roughly 1-in-3 tries there, no worse than the model previously recommended here. That test used one unusually complex reference skill, not typical student Build/Debug turns — if you notice a quality drop on normal requests, that's a different signal than what this comparison measured.</div>
+      <input type="text" id="openrouterModel" placeholder="google/gemma-4-26b-a4b-it:free" />
+      <div class="note">Verified live against the real pipeline (system prompt + skill context + full Answer Contract validation), not just a quick chat test — see the model's own comment in .env / app/config.py for the full picture. The "openrouter/free" auto-router is NOT recommended, it can route to a model that doesn't handle this schema (confirmed live).</div>
+
+      <label>OpenRouter API key</label>
+      <input type="password" id="openrouterKey" placeholder="Leave blank to keep the current key" />
+      <div class="key-hint" id="openrouterKeyStatus"></div>
+    </div>
+
+    <div class="hair"></div>
+    <label>Voice replies (ElevenLabs text-to-speech)</label>
+    <input type="password" id="elevenlabsKey" placeholder="Leave blank to keep the current key" />
+    <div class="key-hint" id="elevenlabsKeyStatus"></div>
+    <div class="note">Independent of the model backend above — used only to read the assistant's clarifying questions aloud when a student turns on "Voice replies". Must be a real secret key starting with <code>sk_</code>, not the "key ID" ElevenLabs' dashboard shows by default — that's a different value and won't work.</div>
+
+    <button id="saveBtn">Save &amp; apply</button>
+    <div class="note">Applies immediately (no restart) and is saved to .env.</div>
+    <div class="status" id="status"></div>
+
+    <div class="hair"></div>
+    <a href="/admin_skills.html" id="skillsLink" class="skills-link">Manage Ollo coding skills →</a>
+    <div class="note">Edit or add strategy patterns (line-following, etc.) the assistant draws on when building a program.</div>
+
+    <div class="hair"></div>
+    <a href="/admin_prompts.html" id="promptsLink" class="skills-link">Edit prompts →</a>
+    <div class="note">Rewrite the actual instructions sent to the model for Build/Debug — tone, rules, coaching flow.</div>
+
+    <div class="hair"></div>
+    <button type="button" class="danger" id="restartBtn">Restart server</button>
+    <div class="note">Restarts the process running right now (picks up a code update or a hand-edited .env) — same as closing and reopening the Terminal window, done remotely. Drops any student mid-request with no warning to them.</div>
+    <div class="status" id="restartStatus"></div>
+
+  </div>
+</div>
+
+<script>
+let token = null;
+let backend = 'local';
+
+const el = (id) => document.getElementById(id);
+// `#status` lives inside `#settingsPanel`, which stays `display: none`
+// until AFTER a successful login -- a login failure written there was
+// invisible, not just easy to miss (caught live: "the message box for
+// wrong password [is on the] wrong page"). `#loginStatus` is the same
+// look, but sits inside `#loginPanel` itself so it's actually visible
+// for the two failures that can happen before login ever succeeds.
+const showStatus = (msg, ok, targetId = 'status') => {
+  const s = el(targetId);
+  s.textContent = msg;
+  s.className = 'status ' + (ok ? 'ok' : 'err');
+};
+const showLoginStatus = (msg, ok) => showStatus(msg, ok, 'loginStatus');
+
+// "Is this actually running today's edit?" -- a LaunchAgent auto-restarts
+// on crash, so "the server responds" was never proof it reflects a recent
+// code change. started_at + code_fingerprint (config.py, computed once at
+// import) together answer that: this timestamp jumping to "just now" after
+// you restart is what proves the restart actually happened, and the
+// fingerprint is something you can literally compare against a value
+// quoted back to you after a fix, if it's ever in doubt. No login
+// required -- /health is public, same as the rest of the app.
+async function loadServerStatus() {
+  try {
+    const res = await fetch('/health');
+    const h = await res.json();
+    const ageSeconds = Date.now() / 1000 - h.started_at;
+    const ageText = ageSeconds < 90 ? Math.round(ageSeconds) + 's ago'
+      : ageSeconds < 3600 ? Math.round(ageSeconds / 60) + 'm ago'
+      : Math.round(ageSeconds / 3600) + 'h ago';
+    const freshClass = ageSeconds < 900 ? 'fresh' : '';
+    el('serverStatus').innerHTML =
+      `Server started <span class="${freshClass}">${ageText}</span> &middot; ` +
+      `code fingerprint <code>${h.code_fingerprint}</code> &middot; model warm: ${h.warm ? 'yes' : 'no'}`;
+  } catch (e) {
+    el('serverStatus').textContent = 'Could not reach the server.';
+  }
+}
+loadServerStatus();
+
+el('loginBtn').addEventListener('click', async () => {
+  const password = el('password').value;
+  try {
+    const res = await fetch('/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) { showLoginStatus('Wrong password, or admin login is not configured.', false); return; }
+    const body = await res.json();
+    token = body.token;
+    sessionStorage.setItem('admin_token', token);
+    el('loginPanel').style.display = 'none';
+    el('settingsPanel').style.display = 'block';
+    await loadSettings();
+  } catch (e) {
+    showLoginStatus('Could not reach the server.', false);
+  }
+});
+
+function setBackend(b) {
+  backend = b;
+  document.querySelectorAll('.radio-option').forEach(o => {
+    o.classList.toggle('active', o.dataset.backend === b);
+  });
+  el('localFields').style.display = b === 'local' ? 'block' : 'none';
+  el('geminiFields').style.display = b === 'gemini' ? 'block' : 'none';
+  el('openrouterFields').style.display = b === 'openrouter' ? 'block' : 'none';
+}
+document.querySelectorAll('.radio-option').forEach(o => {
+  o.addEventListener('click', () => setBackend(o.dataset.backend));
+});
+
+async function loadSettings() {
+  const res = await fetch('/admin/settings', { headers: { Authorization: 'Bearer ' + token } });
+  if (!res.ok) { showStatus('Session expired, please log in again.', false); return; }
+  const s = await res.json();
+  setBackend(s.backend);
+  el('ollamaModel').value = s.ollama_model;
+  el('ollamaHostNote').textContent = 'Ollama host: ' + s.ollama_host;
+  el('geminiModel').value = s.gemini_model;
+  el('geminiKeyStatus').textContent = s.gemini_api_key_set ? 'A key is currently set.' : 'No key set yet.';
+  el('openrouterModel').value = s.openrouter_model;
+  syncOpenrouterSelectFromText();
+  el('openrouterKeyStatus').textContent = s.openrouter_api_key_set ? 'A key is currently set.' : 'No key set yet.';
+  el('elevenlabsKeyStatus').textContent = s.elevenlabs_api_key_set ? 'A key is currently set.' : 'No key set yet — voice replies will silently stay off.';
+}
+
+// The dropdown is a quick-picker for the models actually verified live
+// against this app's real pipeline (see the option labels); the text
+// input underneath is still the real source of truth for what gets saved,
+// so a model not in the list can still be typed in directly via "Custom".
+function syncOpenrouterSelectFromText() {
+  const select = el('openrouterModelSelect');
+  const current = el('openrouterModel').value.trim();
+  const known = Array.from(select.options).some(o => o.value === current);
+  select.value = known ? current : '__custom__';
+  el('openrouterModel').readOnly = known;
+}
+el('openrouterModelSelect').addEventListener('change', () => {
+  const select = el('openrouterModelSelect');
+  if (select.value === '__custom__') {
+    el('openrouterModel').readOnly = false;
+    el('openrouterModel').focus();
+  } else {
+    el('openrouterModel').value = select.value;
+    el('openrouterModel').readOnly = true;
+  }
+});
+
+const modelFor = (body) => ({ local: body.ollama_model, gemini: body.gemini_model, openrouter: body.openrouter_model }[body.backend]);
+
+el('saveBtn').addEventListener('click', async () => {
+  const payload = {
+    backend,
+    ollama_model: el('ollamaModel').value.trim() || null,
+    gemini_model: el('geminiModel').value.trim() || null,
+    gemini_api_key: el('geminiKey').value.trim() || null,
+    openrouter_model: el('openrouterModel').value.trim() || null,
+    openrouter_api_key: el('openrouterKey').value.trim() || null,
+    elevenlabs_api_key: el('elevenlabsKey').value.trim() || null,
+  };
+  const res = await fetch('/admin/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    showStatus(body.detail || 'Save failed.', false);
+    return;
+  }
+  el('geminiKey').value = '';
+  el('openrouterKey').value = '';
+  el('elevenlabsKey').value = '';
+  showStatus('Saved and applied — now running ' + modelFor(body) + '.', true);
+  await loadSettings();
+});
+
+el('restartBtn').addEventListener('click', async () => {
+  if (!confirm('Restart the server now? Any student mid-request will be dropped with no warning to them.')) return;
+  await attemptRestart(false);
+});
+
+async function attemptRestart(force) {
+  const statusEl = el('restartStatus');
+  el('restartBtn').disabled = true;
+  try {
+    const res = await fetch('/admin/restart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ force }),
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      el('restartBtn').disabled = false;
+      if (confirm((body.detail || 'Requests are still in progress.') + '\n\nRestart anyway?')) {
+        await attemptRestart(true);
+      }
+      return;
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showStatus(body.detail || 'Restart failed.', false, 'restartStatus');
+      el('restartBtn').disabled = false;
+      return;
+    }
+  } catch (e) {
+    showStatus('Could not reach the server.', false, 'restartStatus');
+    el('restartBtn').disabled = false;
+    return;
+  }
+  await waitForRestart();
+}
+
+// Polls /health, same source loadServerStatus() already trusts, until
+// started_at moves to a fresh value -- the server responding again isn't
+// proof the restart actually happened (a request could land in the brief
+// window before the process re-execs), only a NEW started_at is.
+async function waitForRestart() {
+  const before = await currentStartedAt();
+  let elapsed = 0;
+  const render = () => {
+    statusEl().className = 'status progress';
+    statusEl().innerHTML = `<span class="spinner"></span><span>Restarting… (${elapsed}s)</span>`;
+  };
+  render();
+  const ticker = setInterval(() => { elapsed += 1; render(); }, 1000);
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const now = await currentStartedAt();
+    if (now !== null && now !== before) {
+      clearInterval(ticker);
+      showStatus('Restarted — running fresh code now.', true, 'restartStatus');
+      el('restartBtn').disabled = false;
+      loadServerStatus();
+      return;
+    }
+  }
+  clearInterval(ticker);
+  showStatus('Still not back after 60s — check the Terminal window.', false, 'restartStatus');
+  el('restartBtn').disabled = false;
+}
+
+function statusEl() { return el('restartStatus'); }
+
+async function currentStartedAt() {
+  try {
+    const res = await fetch('/health');
+    if (!res.ok) return null;
+    const h = await res.json();
+    return h.started_at;
+  } catch (e) {
+    return null;  // expected during the brief window the process is restarting
+  }
+}
+</script>
+</body>
+</html>
