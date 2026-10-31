@@ -139,6 +139,9 @@ Steps:
 3. Check: `ls vendor/r-block-directory.md vendor/prompts` and `python3 -m pytest -q`.
 4. Restart the app. **Admin → Prompts** shows the instructions in use (the prompt files, or the generic defaults if there are none).
 
+HQ builds the pack with `python3 scripts/make_share_pack.py`, which writes it
+to the git-ignored `to_share/` folder (a folder tree plus `knowledge-pack.zip`).
+
 Do not edit `vendor/r-block-directory.md` by hand. Admin changes to prompts are saved in `data/prompts.json`; your levels and directory-context edits stay in `data/levels.json` and `data/directory_context.json` on your machine.
 
 ## Hosting it locally

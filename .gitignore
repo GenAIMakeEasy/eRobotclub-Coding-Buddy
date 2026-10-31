@@ -12,4 +12,7 @@ __pycache__/
 # local configuration
 data/levels.json
 data/directory_context.json
+
+# knowledge pack for sharing (private; built by scripts/make_share_pack.py)
+to_share/
 benchmark/
