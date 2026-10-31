@@ -114,6 +114,33 @@ to default" and "Reset factory" manage the default copy
 (`vendor/r-block-directory.md`; the original is kept in
 `vendor/r-block-directory.factory.md`).
 
+## Knowledge pack (get it from HQ)
+
+What the app knows about R Block — the block catalogue, the prompt text, the
+skill library and the design notes — is **not in the public code**. HQ keeps it
+as a *knowledge pack*. Without the pack the app does not start (there is no
+block catalogue to check answers against).
+
+**Ask HQ for the knowledge pack**, unzip it into the repo root so the folders
+line up, then check and restart:
+
+| In the pack | Put it at | Needed? | What it does |
+|---|---|---|---|
+| `vendor/r-block-directory.md` | `vendor/r-block-directory.md` | **Required** | The block catalogue: every block name and its exact text. Its checksum is verified at startup, so use HQ's file unchanged. |
+| `vendor/r-block-directory.factory.md` | `vendor/r-block-directory.factory.md` | For Admin → "Reset factory" | The untouched original copy. |
+| `vendor/prompts/*.txt` (9 files: `system_template`, `build_extra`, `debug_extra`, `skill_context_prefix`, `level_context_prefix`, `level_blocks_note`, `no_variables_note`, `use_variables_note`, `use_functions_note`) | `vendor/prompts/` | Optional | The real instructions sent to the model. Without them the app uses the short generic defaults in `app/llm/pipeline.py`. |
+| `data/skills.json` | `data/skills.json` | Optional | The skill library (strategy patterns such as Line Following). Without it the library is empty; admins can edit it in Admin → skills. |
+| `vendor/line-following-strategy.md`, `docs/adr/`, `CONTEXT.md` | same paths | Optional | Reference and design notes. Documentation only; the app does not read them. |
+
+Steps:
+
+1. Get the knowledge pack from HQ.
+2. Unzip it into the repo root (it creates or fills `vendor/`, `vendor/prompts/`, `data/` and `docs/`).
+3. Check: `ls vendor/r-block-directory.md vendor/prompts` and `python3 -m pytest -q`.
+4. Restart the app. **Admin → Prompts** shows the instructions in use (the prompt files, or the generic defaults if there are none).
+
+Do not edit `vendor/r-block-directory.md` by hand. Admin changes to prompts are saved in `data/prompts.json`; your levels and directory-context edits stay in `data/levels.json` and `data/directory_context.json` on your machine.
+
 ## Hosting it locally
 
 ### Requirements

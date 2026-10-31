@@ -51,17 +51,50 @@ from app.skills.retrieve import retrieve as retrieve_skill
 
 Mode = Literal["build", "debug"]
 
-_LEVEL_CONTEXT_PREFIX = "\n\nInstructions for this student's level:\n"
+# --------------------------------------------------------------------------
+# Prompt text lives in files, not in this module. The real instructions (block
+# grammar, coaching flow, level notes) are knowledge files you get from HQ and
+# put in vendor/prompts/ -- see the README. Without them the app still runs on
+# the short, generic defaults below.
+# --------------------------------------------------------------------------
+_PROMPT_DIR = config.REPO_ROOT / "vendor" / "prompts"
 
-_SKILL_CONTEXT_PREFIX = '\n\nRelevant notes for this request:\n\n'
 
-_SYSTEM_TEMPLATE = 'You help a student with a robot block-coding task. This is a {mode_label} request. Answer in {language}. Follow the answer format you were given, and only use blocks from the reference below.\n{mode_extra}\n\nBlock reference:\n{directory_context}'
+def _prompt_text(name: str, default: str) -> str:
+    """The text of vendor/prompts/<name>.txt, exactly as written (no stripping),
+    or `default` when that file is not there."""
+    path = _PROMPT_DIR / f"{name}.txt"
+    return path.read_text(encoding="utf-8") if path.exists() else default
+
+
+_SIMPLE_SYSTEM_TEMPLATE = (
+    "You help a student with a robot block-coding task. This is a {mode_label} request. "
+    "Answer in {language}. Follow the answer format you were given, and only use blocks "
+    "from the reference below.\n{mode_extra}\n\nBlock reference:\n{directory_context}"
+)
+_SIMPLE_BUILD_EXTRA = (
+    "Guide the student a little at a time: if the goal is unclear ask one short question, "
+    "otherwise build the program in small steps."
+)
+_SIMPLE_DEBUG_EXTRA = "Find the fault, explain it simply, and show the corrected blocks."
+_SIMPLE_SKILL_PREFIX = "\n\nRelevant notes for this request:\n\n"
+_SIMPLE_LEVEL_PREFIX = "\n\nInstructions for this student's level:\n"
+_SIMPLE_LEVEL_BLOCKS_NOTE = "\n\nUse only the blocks listed in the reference above."
+_SIMPLE_NO_VARIABLES_NOTE = " Do not use variables; use plain numbers instead."
+_SIMPLE_USE_VARIABLES_NOTE = " Variables are available."
+_SIMPLE_USE_FUNCTIONS_NOTE = " Functions are available."
+
+_LEVEL_CONTEXT_PREFIX = _prompt_text("level_context_prefix", _SIMPLE_LEVEL_PREFIX)
+
+_SKILL_CONTEXT_PREFIX = _prompt_text("skill_context_prefix", _SIMPLE_SKILL_PREFIX)
+
+_SYSTEM_TEMPLATE = _prompt_text("system_template", _SIMPLE_SYSTEM_TEMPLATE)
 
 _MODE_LABEL = {"build": "Build (write a new program)", "debug": "Debug (fix a broken program)"}
 
-_BUILD_EXTRA = 'Guide the student a little at a time: if the goal is unclear ask one short question, otherwise build the program in small steps.'
+_BUILD_EXTRA = _prompt_text("build_extra", _SIMPLE_BUILD_EXTRA)
 
-_DEBUG_EXTRA = 'Find the fault, explain it simply, and show the corrected blocks.'
+_DEBUG_EXTRA = _prompt_text("debug_extra", _SIMPLE_DEBUG_EXTRA)
 
 _MODE_EXTRA = {"build": _BUILD_EXTRA, "debug": _DEBUG_EXTRA}
 
@@ -120,15 +153,15 @@ def routing_text(question: str, history: Optional[list[dict]] = None) -> str:
     return " ".join([*(h["content"] for h in (history or [])), question])
 
 
-_LEVEL_BLOCKS_NOTE = '\n\nUse only the blocks listed in the reference above.'
+_LEVEL_BLOCKS_NOTE = _prompt_text("level_blocks_note", _SIMPLE_LEVEL_BLOCKS_NOTE)
 
 
-_NO_VARIABLES_NOTE = ' Do not use variables; use plain numbers instead.'
+_NO_VARIABLES_NOTE = _prompt_text("no_variables_note", _SIMPLE_NO_VARIABLES_NOTE)
 
 
-_USE_VARIABLES_NOTE = ' Variables are available.'
+_USE_VARIABLES_NOTE = _prompt_text("use_variables_note", _SIMPLE_USE_VARIABLES_NOTE)
 
-_USE_FUNCTIONS_NOTE = ' Functions are available.'
+_USE_FUNCTIONS_NOTE = _prompt_text("use_functions_note", _SIMPLE_USE_FUNCTIONS_NOTE)
 
 
 def _level_blocks_note(allowed: list[str]) -> str:
