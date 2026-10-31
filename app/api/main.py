@@ -43,6 +43,8 @@ from app.rag.embeddings import OllamaEmbedder
 from app.schema.render import render_tree
 from app.session.log import LogWriter
 from app.session.store import FileSessionStore, Session
+from app.levels import store as levels_store
+from app.schema import block_directory as block_directory_module
 from app.prompts import store as prompts_store
 from app.prompts.models import PromptOverrides
 from app.skills import store as skills_store
@@ -74,6 +76,36 @@ class AskRequest(BaseModel):
     # exactly that stale-looking context carried forward on purpose. See
     # _continuation_history_after_complete.
     continue_thread: bool = False
+    # A levels_store.Level id picked from the entry screen's dropdown; its
+    # admin-written prompt is added to the system prompt. Unknown/None
+    # means no level (same as before this existed).
+    level: Optional[str] = Field(default=None, max_length=128)
+
+
+class LevelOut(BaseModel):
+    id: str
+    name: str
+
+
+class LevelAdminIn(BaseModel):
+    id: Optional[str] = Field(default=None, max_length=128)
+    name: str = Field(min_length=1, max_length=60)
+    prompt: str = Field(default="", max_length=20000)
+    directory_keys: list[str] = Field(default_factory=list, max_length=100)
+
+
+class DirectoryEntryIn(BaseModel):
+    key: str = Field(min_length=1, max_length=60)
+    value: str = Field(default="", max_length=50000)
+
+
+class DirectoryActionOut(BaseModel):
+    entries: list[DirectoryEntryIn]
+    note: str
+
+
+class LevelAdminOut(LevelAdminIn):
+    id: str
 
 
 class AskResponse(BaseModel):
@@ -624,6 +656,8 @@ def create_app(
     embedder: Optional[OllamaEmbedder] = None,
     skills_path: Optional[Path] = None,
     prompts_path: Optional[Path] = None,
+    levels_path: Optional[Path] = None,
+    directory_path: Optional[Path] = None,
     tts_client: Optional[ElevenLabsTTS] = None,
     # Injectable so tests can verify /admin/restart's auth/queue-check logic
     # without actually re-executing the test process -- see _default_restart.
@@ -661,6 +695,8 @@ def create_app(
     embedder = embedder or OllamaEmbedder()
     skills_path = skills_path or skills_store.DEFAULT_PATH
     prompts_path = prompts_path or prompts_store.DEFAULT_PATH
+    levels_path = levels_path or levels_store.DEFAULT_PATH
+    directory_path = directory_path or levels_store.DIRECTORY_PATH
     restart_fn = restart_fn or _default_restart
     tts_client = tts_client or ElevenLabsTTS(
         api_key=config.ELEVENLABS_API_KEY,
@@ -739,6 +775,11 @@ def create_app(
     # `answer()` takes it as `prompts=`), so an admin's save takes effect
     # on the very next request, no restart needed.
     app.state.prompts = prompts_store.load(prompts_path)
+    # Same in-process-cache-refreshed-on-write pattern as skills/prompts.
+    app.state.levels_path = levels_path
+    app.state.levels = levels_store.load_all(levels_path)
+    app.state.directory_path = directory_path
+    app.state.directory = levels_store.load_directory(directory_path)
 
     def _require_admin(request: Request) -> None:
         auth_header = request.headers.get("Authorization", "")
@@ -1002,6 +1043,126 @@ def create_app(
         state.prompts = overrides
         return _prompts_response(overrides)
 
+    @app.get("/levels", response_model=list[LevelOut])
+    async def get_levels(request: Request) -> list[LevelOut]:
+        """Names only -- the prompts stay admin-side. Behind the site
+        gate like everything else student-facing."""
+        return [LevelOut(id=lv.id, name=lv.name) for lv in request.app.state.levels]
+
+    @app.get("/admin/levels", response_model=list[LevelAdminOut])
+    async def get_admin_levels(request: Request) -> list[LevelAdminOut]:
+        _require_admin(request)
+        return [LevelAdminOut(**lv.to_dict()) for lv in request.app.state.levels]
+
+    @app.put("/admin/levels", response_model=list[LevelAdminOut])
+    async def put_admin_levels(payload: list[LevelAdminIn], request: Request) -> list[LevelAdminOut]:
+        """Full replace of the list: add = a new entry, set = an edited
+        entry, remove = an entry left out. Entries without an id get one."""
+        _require_admin(request)
+        state = request.app.state
+        known_keys = {e["key"] for e in state.directory}
+        levels: list[levels_store.Level] = []
+        seen_names: set[str] = set()
+        for item in payload:
+            name = item.name.strip()
+            if not name:
+                raise HTTPException(status_code=400, detail="every level needs a name")
+            if name.lower() in seen_names:
+                raise HTTPException(status_code=400, detail=f"duplicate level name: {name}")
+            seen_names.add(name.lower())
+            levels.append(
+                levels_store.Level(
+                    id=item.id or levels_store.new_id(name),
+                    name=name,
+                    prompt=item.prompt.strip(),
+                    directory_keys=[k for k in dict.fromkeys(item.directory_keys) if k in known_keys],
+                )
+            )
+        levels_store.save_all(levels, state.levels_path)
+        state.levels = levels
+        return [LevelAdminOut(**lv.to_dict()) for lv in levels]
+
+    @app.get("/admin/directory-context", response_model=list[DirectoryEntryIn])
+    async def get_directory_context(request: Request) -> list[DirectoryEntryIn]:
+        _require_admin(request)
+        return [DirectoryEntryIn(**e) for e in request.app.state.directory]
+
+    @app.put("/admin/directory-context", response_model=list[DirectoryEntryIn])
+    async def put_directory_context(payload: list[DirectoryEntryIn], request: Request) -> list[DirectoryEntryIn]:
+        """Full replace of the key/value entries a level can pick from.
+        Levels pointing at a key that no longer exists are pruned."""
+        _require_admin(request)
+        state = request.app.state
+        entries: list[dict] = []
+        seen: set[str] = set()
+        for item in payload:
+            key = item.key.strip()
+            if not key:
+                raise HTTPException(status_code=400, detail="every directory entry needs a key")
+            if key in seen:
+                raise HTTPException(status_code=400, detail=f"duplicate directory key: {key}")
+            seen.add(key)
+            entries.append({"key": key, "value": item.value.strip()})
+        levels_store.save_directory(entries, state.directory_path)
+        state.directory = entries
+        for lv in state.levels:
+            lv.directory_keys = [k for k in lv.directory_keys if k in seen]
+        levels_store.save_all(state.levels, state.levels_path)
+        return [DirectoryEntryIn(**e) for e in entries]
+
+    def _replace_directory(state, entries: list[dict]) -> None:
+        levels_store.save_directory(entries, state.directory_path)
+        state.directory = entries
+        keys = {e["key"] for e in entries}
+        for lv in state.levels:
+            lv.directory_keys = [k for k in lv.directory_keys if k in keys]
+        levels_store.save_all(state.levels, state.levels_path)
+
+    @app.post("/admin/directory-context/set-default", response_model=DirectoryActionOut)
+    async def set_directory_default(request: Request) -> DirectoryActionOut:
+        """Promotes the SAVED entries to be the default copy, i.e. rewrites
+        vendor/r-block-directory.md (validated first; the startup checksum
+        is updated to match). The page saves its edits before calling this.
+        The block-name rules are built at import, so a restart applies it."""
+        _require_admin(request)
+        state = request.app.state
+        try:
+            block_directory_module.write_default(state.directory)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return DirectoryActionOut(
+            entries=[DirectoryEntryIn(**e) for e in state.directory],
+            note="Saved as the default copy (r-block-directory.md). Restart the server to apply it to the block-name rules.",
+        )
+
+    @app.post("/admin/directory-context/recover", response_model=DirectoryActionOut)
+    async def recover_directory_default(request: Request) -> DirectoryActionOut:
+        """Working entries back to whatever the default copy currently is."""
+        _require_admin(request)
+        state = request.app.state
+        _replace_directory(state, block_directory_module.read_default_entries())
+        return DirectoryActionOut(
+            entries=[DirectoryEntryIn(**e) for e in state.directory],
+            note="Entries reset to the default copy.",
+        )
+
+    @app.post("/admin/directory-context/factory-reset", response_model=DirectoryActionOut)
+    async def factory_reset_directory(request: Request) -> DirectoryActionOut:
+        """Default copy AND working entries back to the original shipped
+        directory (vendor/r-block-directory.factory.md)."""
+        _require_admin(request)
+        state = request.app.state
+        try:
+            block_directory_module.restore_factory()
+            entries = block_directory_module.read_factory_entries()
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        _replace_directory(state, entries)
+        return DirectoryActionOut(
+            entries=[DirectoryEntryIn(**e) for e in entries],
+            note="Reset to factory. Restart the server if you had set a different default before, so the block-name rules match.",
+        )
+
     @app.post("/admin/restart", response_model=AdminRestartResponse)
     async def restart_server(payload: AdminRestartRequest, request: Request) -> AdminRestartResponse:
         """Re-execs this process in place (see _default_restart) -- the
@@ -1130,6 +1291,21 @@ def create_app(
                 status_code=502, detail=f"model draft did not match the expected shape: {exc}"
             ) from exc
 
+    def _level_directory_context(state, level) -> Optional[str]:
+        if not level or not level.directory_keys:
+            return None
+        by_key = {e["key"]: e["value"] for e in state.directory}
+        return "\n\n".join(by_key[k] for k in level.directory_keys if by_key.get(k)) or None
+
+    def _level_block_names(level) -> Optional[list[str]]:
+        """Block names a level may use: those of its picked directory tabs.
+        None (no restriction) when it picked none, or only custom keys that
+        match no real tab."""
+        if not level or not level.directory_keys:
+            return None
+        names = [b.name for b in block_directory_module.load() if b.tab in level.directory_keys]
+        return names or None
+
     @app.post("/ask", response_model=AskResponse)
     async def ask(payload: AskRequest, request: Request) -> AskResponse:
         state = request.app.state
@@ -1212,6 +1388,7 @@ def create_app(
                     )
                     return economy_answer
 
+            level = next((lv for lv in state.levels if lv.id == payload.level), None)
             try:
                 result = await run_pipeline(
                     client=state.client,
@@ -1223,6 +1400,9 @@ def create_app(
                     skills=state.skills,
                     embedder=state.embedder,
                     prompts=state.prompts,
+                    level_prompt=level.prompt if level else None,
+                    directory_context=_level_directory_context(state, level),
+                    allowed_block_names=_level_block_names(level),
                 )
             except ModelUnavailable as exc:
                 state.log.append(

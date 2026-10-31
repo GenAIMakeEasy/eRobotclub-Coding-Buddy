@@ -110,11 +110,13 @@
     <div id="openrouterFields">
       <label>OpenRouter model</label>
       <select id="openrouterModelSelect">
-        <option value="z-ai/glm-5.3-flash">Z.ai GLM 5.3 Flash — recommended (75.8% reference accuracy; confirmed live against our real schema: 7.2s, $0.0014/request)</option>
-        <option value="deepseek/deepseek-v4-flash">DeepSeek V4 Flash 0423 (75.1% reference accuracy; confirmed live against our real schema: 38.6s, $0.0017/request)</option>
+        <option value="openai/gpt-6-luna">OpenAI GPT-6 Luna — recommended (cheapest: $0.0020 per 3-round conversation; first answer ~9s; 67.3% reference accuracy)</option>
+        <option value="deepseek/deepseek-v4.1-flash-1017">DeepSeek V4.1 Flash 1017 (fastest: first answer ~2.5s; $0.0055 per 3-round conversation; 73.3% reference accuracy)</option>
+        <option value="anthropic/claude-haiku-5.5">Anthropic Claude Haiku 5.5 (first answer ~10s; $0.0066 per 3-round conversation; 72.7% reference accuracy; answer format sent as text, not enforced)</option>
+        <option value="z-ai/glm-5.3-flash">Z.ai GLM 5.3 Flash (75.6% reference accuracy; $0.0084 per 3-round conversation; speed varies a lot by provider, 9s to 45s for the first answer)</option>
         <option value="__custom__">Custom / other…</option>
       </select>
-      <div class="note">Reference accuracy % is from an external benchmark (per-task, not measured against this app's own pipeline). Timing/cost figures marked "confirmed live" were measured here, against the real Build system prompt + full recursive Answer Contract schema, via OpenRouter's usage.cost field. Two candidates were tried and dropped: GPT-5.6 Luna 400s outright against our real schema (OpenAI's strict JSON mode rejects a nested object missing "additionalProperties: false" -- a gap in our own schema, not this model's quality). Xiaomi MiMo is a reasoning model that burns unpredictable time "thinking" before answering even trivial prompts; its live test against our real schema never returned a usable result, so no clean number exists for it either -- dropped on that risk, not a confirmed hang.</div>
+      <div class="note">Reference accuracy % is from an external benchmark (per-task, not measured against this app's own pipeline). Speed and cost figures were measured here in an internal benchmark, using the app's real Excel-level Build prompt: "first answer" is the time to the first response, and cost is the total for one conversation of 3 rounds (about 3 requests). The app tries this model first and, if it fails, the fallback models set in .env (OPENROUTER_FALLBACK_MODEL, currently DeepSeek V4.1 Flash 1017, then Claude Haiku 5.5). Two Ling models and GLM 5.3 were tried and left out: the Ling models often timed out or returned unusable answers, and GLM 5.3 cost about ten times more per conversation.</div>
       <input type="text" id="openrouterModel" placeholder="google/gemma-4-26b-a4b-it:free" />
       <div class="note">Verified live against the real pipeline (system prompt + skill context + full Answer Contract validation), not just a quick chat test — see the model's own comment in .env / app/config.py for the full picture. The "openrouter/free" auto-router is NOT recommended, it can route to a model that doesn't handle this schema (confirmed live).</div>
 
@@ -156,6 +158,10 @@
     <div class="note">Rewrite the actual instructions sent to the model for Build/Debug — tone, rules, coaching flow.</div>
 
     <div class="hair"></div>
+    <a href="/admin_levels.html" id="levelsLink" class="skills-link">Manage student levels →</a>
+    <div class="note">Add, edit or remove the levels students pick from, and the prompt each level adds.</div>
+
+    <div class="hair"></div>
     <button type="button" class="danger" id="restartBtn">Restart server</button>
     <div class="note">Restarts the process running right now (picks up a code update or a hand-edited .env) — same as closing and reopening the Terminal window, done remotely. Drops any student mid-request with no warning to them.</div>
     <div class="status" id="restartStatus"></div>
@@ -164,7 +170,7 @@
 </div>
 
 <script>
-let token = null;
+let token = sessionStorage.getItem('admin_token');
 let backend = 'local';
 
 const el = (id) => document.getElementById(id);
@@ -406,6 +412,19 @@ async function currentStartedAt() {
     return null;  // expected during the brief window the process is restarting
   }
 }
+
+// Coming back from a sub-page (levels/prompts/skills) with a still-valid
+// login: skip the login form. A rejected/expired token falls back to it.
+(async function restoreLogin() {
+  if (!token) return;
+  try {
+    const res = await fetch('/admin/settings', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) { token = null; sessionStorage.removeItem('admin_token'); return; }
+    el('loginPanel').style.display = 'none';
+    el('settingsPanel').style.display = 'block';
+    await loadSettings();
+  } catch (e) { /* server unreachable: leave the login form showing */ }
+})();
 </script>
 </body>
 </html>

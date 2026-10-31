@@ -39,6 +39,8 @@ Verified live before writing this, not assumed:
 from __future__ import annotations
 
 import asyncio
+import copy
+import json
 from dataclasses import dataclass
 from typing import Optional
 
@@ -46,6 +48,27 @@ import httpx
 
 from app import config
 from app.llm.ollama_client import ChatResult, ModelUnavailable
+
+
+def _close_objects_for_openai(node) -> None:
+    """OpenAI's strict structured output requires every object in the schema to
+    say `additionalProperties: false` and to list every property as required;
+    without that, OpenAI rejects the request outright (HTTP 400,
+    "'additionalProperties' is required to be supplied and to be false").
+    Mutates a COPY of the schema made by the caller -- the app's own schema
+    (used by validation and the other backends) is left exactly as it is.
+    Optional fields are already `anyOf: [..., null]`, so requiring them is
+    harmless. `default` is dropped: strict mode does not accept it."""
+    if isinstance(node, dict):
+        node.pop("default", None)
+        if node.get("type") == "object" or "properties" in node:
+            node["additionalProperties"] = False
+            node["required"] = list(node.get("properties", {}))
+        for v in node.values():
+            _close_objects_for_openai(v)
+    elif isinstance(node, list):
+        for v in node:
+            _close_objects_for_openai(v)
 
 
 @dataclass
@@ -112,22 +135,43 @@ class OpenRouterClient:
             # comment above for why an image-attached call never reaches
             # here (model is already self.vision_model in that case, and
             # fallback_model isn't guaranteed to support images at all).
-            if image_base64 or not self.fallback_model or self.fallback_model == model:
+            #
+            # `fallback_model` may list several models separated by commas;
+            # they are tried in that order until one answers.
+            fallbacks = [m.strip() for m in (self.fallback_model or "").split(",") if m.strip() and m.strip() != model]
+            if image_base64 or not fallbacks:
                 raise
-            try:
-                result = await self._send(self.fallback_model, messages, schema, temperature)
-            except ModelUnavailable as fallback_exc:
-                # Both failed -- surface the ORIGINAL failure (the one the
-                # admin actually configured and would want to investigate),
-                # not the fallback's, but mention both so nothing is lost.
-                raise ModelUnavailable(
-                    f"{primary_exc} (fallback model {self.fallback_model!r} also failed: {fallback_exc})"
-                ) from primary_exc
-            result.used_fallback = True
-            result.fallback_reason = str(primary_exc)
-            return result
+            failures = []
+            for fallback in fallbacks:
+                try:
+                    result = await self._send(fallback, messages, schema, temperature)
+                except ModelUnavailable as fallback_exc:
+                    failures.append(f"fallback model {fallback!r} also failed: {fallback_exc}")
+                    continue
+                result.used_fallback = True
+                result.fallback_reason = str(primary_exc)
+                return result
+            # Every model failed -- surface the ORIGINAL failure (the one the
+            # admin actually configured and would want to investigate),
+            # not the fallbacks', but mention all of them so nothing is lost.
+            raise ModelUnavailable(f"{primary_exc} ({'; '.join(failures)})") from primary_exc
 
     async def _send(self, model: str, messages: list[dict], schema: dict, temperature: float) -> ChatResult:
+        if model.startswith("openai/"):
+            schema = copy.deepcopy(schema)
+            _close_objects_for_openai(schema)
+        prompt_only = model.startswith("anthropic/")
+        if prompt_only:
+            # Anthropic rejects this app's strict schema outright (a block that can contain
+            # blocks is a self-referencing definition, and the compiled grammar is too large),
+            # so the answer format is given as text in the system prompt instead of
+            # `response_format`. Nothing enforces it -- the pipeline's own parse/repair and
+            # retry handling deals with a reply that is not valid JSON.
+            messages = [dict(m) for m in messages]
+            messages[0]["content"] += (
+                "\n\nReply with ONE JSON object and nothing else (no markdown fence, no commentary) "
+                "that follows this JSON Schema exactly:\n" + json.dumps(schema)
+            )
         payload = {
             "model": model,
             "messages": messages,
@@ -164,6 +208,9 @@ class OpenRouterClient:
             },
             "temperature": temperature,
         }
+        if prompt_only:
+            payload.pop("response_format")
+            payload["provider"] = {"sort": "throughput"}  # no structured-output parameter to require
 
         try:
             # Caught live: a real request ran well past 10 minutes with no
@@ -177,14 +224,26 @@ class OpenRouterClient:
             # cannot exceed timeout_seconds total, regardless of what
             # httpx's own timeout semantics do or don't catch.
             async with httpx.AsyncClient(timeout=self.timeout_seconds, transport=self.transport) as client:
-                response = await asyncio.wait_for(
-                    client.post(
-                        "https://openrouter.ai/api/v1/chat/completions",
-                        json=payload,
-                        headers={"Authorization": f"Bearer {self.api_key}"},
-                    ),
-                    timeout=self.timeout_seconds,
-                )
+                for loose in (False, True):
+                    if loose:
+                        payload["provider"] = {"sort": "throughput"}
+                    response = await asyncio.wait_for(
+                        client.post(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            json=payload,
+                            headers={"Authorization": f"Bearer {self.api_key}"},
+                        ),
+                        timeout=self.timeout_seconds,
+                    )
+                    # Some models (e.g. openai/gpt-6-luna) have NO provider that advertises support
+                    # for every parameter we ask for, so `require_parameters` leaves nothing to route
+                    # to and OpenRouter answers 404 straight away -- which used to send every request
+                    # to the fallback model instead. Retry once without that filter: a provider that
+                    # does not advertise support may still honour the JSON schema (and if it does
+                    # not, the pipeline's own parse/retry handling deals with it as usual).
+                    if response.status_code == 404 and "No endpoints found" in response.text and not loose:
+                        continue
+                    break
                 response.raise_for_status()
         except asyncio.TimeoutError as exc:
             # Caught live: `str(asyncio.TimeoutError())` is an EMPTY

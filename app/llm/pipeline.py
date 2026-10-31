@@ -28,6 +28,7 @@ student guess it themselves.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from dataclasses import dataclass
@@ -37,6 +38,7 @@ from typing import Literal, Optional
 from pydantic import ValidationError
 
 from app.context.router import context_for
+from app import config
 from app.llm.ollama_client import ChatClient, ModelUnavailable
 from app.prompts.models import PromptOverrides
 from app.rag.embeddings import OllamaEmbedder
@@ -48,6 +50,8 @@ from app.skills.render import render_skill
 from app.skills.retrieve import retrieve as retrieve_skill
 
 Mode = Literal["build", "debug"]
+
+_LEVEL_CONTEXT_PREFIX = "\n\nInstructions for this student's level:\n"
 
 _SKILL_CONTEXT_PREFIX = '\n\nRelevant notes for this request:\n\n'
 
@@ -116,11 +120,62 @@ def routing_text(question: str, history: Optional[list[dict]] = None) -> str:
     return " ".join([*(h["content"] for h in (history or [])), question])
 
 
+_LEVEL_BLOCKS_NOTE = '\n\nUse only the blocks listed in the reference above.'
+
+
+_NO_VARIABLES_NOTE = ' Do not use variables; use plain numbers instead.'
+
+
+_USE_VARIABLES_NOTE = ' Variables are available.'
+
+_USE_FUNCTIONS_NOTE = ' Functions are available.'
+
+
+def _level_blocks_note(allowed: list[str]) -> str:
+    """The prompt note for a level that limits the blocks. Variables and
+    functions are each handled by whether that tab's blocks are allowed:
+    not allowed -> build without them (numbers instead of variable names);
+    allowed -> use them as the skill notes describe."""
+    note = _LEVEL_BLOCKS_NOTE
+    for tab, use_note in (("Variable", _USE_VARIABLES_NOTE), ("Function", _USE_FUNCTIONS_NOTE)):
+        tab_blocks = {b.name for b in bd.load() if b.tab == tab}
+        if not tab_blocks:
+            continue
+        if tab == "Variable" and not tab_blocks & set(allowed):
+            note += _NO_VARIABLES_NOTE
+        elif tab_blocks & set(allowed):
+            note += use_note
+    return note
+
+
+def _restrict_block_names(schema: dict, allowed: list[str]) -> dict:
+    """A copy of `schema` whose block-name enum lists only `allowed`."""
+    import copy
+
+    every = set(bd.names())
+    keep = [n for n in bd.names() if n in set(allowed)]
+
+    def walk(node):
+        if isinstance(node, dict):
+            if isinstance(node.get("enum"), list) and set(node["enum"]) == every:
+                node["enum"] = keep
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    schema = copy.deepcopy(schema)
+    walk(schema)
+    return schema
+
+
 def _system_prompt(
     mode: Mode,
     language: str,
     routing_text: str,
     prompts: Optional[PromptOverrides] = None,
+    directory_context: Optional[str] = None,
 ) -> str:
     # `prompts` (an admin's saved override, app/prompts/models.py) falls
     # back through TWO layers per field -- an admin's own saved "default"
@@ -148,7 +203,9 @@ def _system_prompt(
         mode_label=_MODE_LABEL[mode],
         language=language,
         mode_extra=mode_extra,
-        directory_context=context_for(routing_text),
+        # A level's own admin-chosen entries (app/levels/store.py), when it
+        # has any; otherwise the usual keyword-routed tabs.
+        directory_context=directory_context if directory_context else context_for(routing_text),
     )
 
 
@@ -853,9 +910,18 @@ async def answer(
     skills: Optional[list[SkillDoc]] = None,
     embedder: Optional[OllamaEmbedder] = None,
     prompts: Optional[PromptOverrides] = None,
+    level_prompt: Optional[str] = None,
+    directory_context: Optional[str] = None,
+    allowed_block_names: Optional[list[str]] = None,
 ) -> PipelineResult:
     routing = routing_text(question, history)
-    system = _system_prompt(mode, language, routing, prompts)
+    system = _system_prompt(mode, language, routing, prompts, directory_context)
+
+    # An admin-written, per-level instruction (app/levels/store.py) the
+    # student picked on the entry screen. Appended verbatim, never
+    # `.format()`-ed, so stray braces in it can't break the request.
+    if level_prompt and level_prompt.strip():
+        system += _LEVEL_CONTEXT_PREFIX + level_prompt.strip()
 
     # Opt-in, not defaulted to a real store/embedder here — matches this
     # module's existing dependency style (ChatClient is also passed in, not
@@ -868,6 +934,14 @@ async def answer(
             system += _SKILL_CONTEXT_PREFIX + render_skill(matched)
 
     schema = schema_for(mode)
+
+    # A level that picked specific directory tabs may use ONLY those tabs'
+    # blocks: shrink the block-name enum the model is constrained to (the
+    # prompt text alone is not enough -- the base rules and matched skill
+    # docs still talk about e.g. functions), and say so in the prompt.
+    if allowed_block_names:
+        schema = _restrict_block_names(schema, allowed_block_names)
+        system += _level_blocks_note(allowed_block_names)
 
     # One retry, ONLY for unparseable/empty output — not a general retry
     # policy (Q16 is explicit that a structurally-wrong-but-valid answer is
@@ -888,14 +962,28 @@ async def answer(
     # above did nothing for this failure mode. Attempt 2 nudges temperature
     # up specifically so a repeat of the SAME mistake isn't guaranteed.
     for attempt in range(2):
-        result = await client.chat(
-            system=system,
-            user=question,
-            schema=schema,
-            image_base64=image_base64,
-            history=history,
-            temperature=0 if attempt == 0 else 0.4,
-        )
+        # config.ASK_ATTEMPT_TIMEOUT_SECONDS: abandon a slow first attempt
+        # and use the retry on it; the retry gets double the time (0 = no
+        # per-attempt limit).
+        attempt_timeout = config.ASK_ATTEMPT_TIMEOUT_SECONDS * (attempt + 1)
+        try:
+            result = await asyncio.wait_for(
+                client.chat(
+                    system=system,
+                    user=question,
+                    schema=schema,
+                    image_base64=image_base64,
+                    history=history,
+                    temperature=0 if attempt == 0 else 0.4,
+                ),
+                timeout=attempt_timeout or None,
+            )
+        except asyncio.TimeoutError as exc:
+            if attempt == 1:
+                raise ModelUnavailable(
+                    f"model took longer than {config.ASK_ATTEMPT_TIMEOUT_SECONDS:g}s, then {attempt_timeout:g}s on the retry"
+                ) from exc
+            continue
         try:
             payload = json.loads(result.text)
             if not isinstance(payload, dict):

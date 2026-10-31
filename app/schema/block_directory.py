@@ -15,6 +15,15 @@ from pathlib import Path
 
 DIRECTORY_PATH = Path(__file__).resolve().parents[2] / "vendor" / "r-block-directory.md"
 
+# Byte-identical copy of the original directory, kept so an admin can always
+# get back to the factory version ("Reset factory" in the levels admin page).
+# Never written by the app. Must hash to PINNED_SHA256.
+FACTORY_PATH = DIRECTORY_PATH.with_name("r-block-directory.factory.md")
+# When an admin uses "Set as default", DIRECTORY_PATH is rewritten and its new
+# hash is recorded here, so the startup check below still refuses an
+# UNRECORDED (hand) edit while accepting the admin-approved one.
+SHA_SIDECAR_PATH = DIRECTORY_PATH.with_name("r-block-directory.sha256")
+
 # The version the enum was generated from. A silent upstream edit would change
 # what the model is permitted to emit, so we refuse to start on a mismatch.
 PINNED_SHA256 = "4347e6e5d4c9789c2d9678f9b154b33809ddca73cb532f7ff80f23d17087d0f0"
@@ -114,7 +123,10 @@ def _sections(text: str, pattern: re.Pattern[str]) -> list[tuple[str, str]]:
 def verify_pinned(path: Path = DIRECTORY_PATH) -> None:
     """Refuse a directory that is not the version the enum was generated from."""
     actual = hashlib.sha256(path.read_bytes()).hexdigest()
-    if actual != PINNED_SHA256:
+    approved = {PINNED_SHA256}
+    if path == DIRECTORY_PATH and SHA_SIDECAR_PATH.exists():
+        approved.add(SHA_SIDECAR_PATH.read_text(encoding="utf-8").strip())
+    if actual not in approved:
         raise RuntimeError(
             f"{path.name} has changed since the enum was pinned "
             f"(expected {PINNED_SHA256[:12]}…, found {actual[:12]}…). "
@@ -125,8 +137,10 @@ def verify_pinned(path: Path = DIRECTORY_PATH) -> None:
 def parse(path: Path = DIRECTORY_PATH) -> list[Block]:
     """Read every block in the directory, in document order."""
     verify_pinned(path)
-    text = path.read_text(encoding="utf-8")
+    return parse_text(path.read_text(encoding="utf-8"))
 
+
+def parse_text(text: str) -> list[Block]:
     blocks: list[Block] = []
     for tab, tab_body in _sections(text, _TAB):
         for name, body in _sections(tab_body, _BLOCK):
@@ -180,3 +194,63 @@ def tabs() -> list[str]:
     for b in load():
         seen.setdefault(b.tab, None)
     return list(seen)
+
+
+# -- Admin-managed default copy (levels admin page) -------------------------
+# The default copy is DIRECTORY_PATH itself. Entries are the same key (tab
+# name) -> value (that tab's markdown) pairs raw_tab_sections() returns, but
+# read fresh from disk, not from the process-lifetime caches above.
+
+
+def entries_from_text(text: str) -> list[dict]:
+    return [{"key": tab, "value": f"## {tab}\n{body}".rstrip()} for tab, body in _sections(text, _TAB)]
+
+
+def read_default_entries() -> list[dict]:
+    return entries_from_text(DIRECTORY_PATH.read_text(encoding="utf-8"))
+
+
+def read_factory_entries() -> list[dict]:
+    verify_factory()
+    return entries_from_text(FACTORY_PATH.read_text(encoding="utf-8"))
+
+
+def verify_factory() -> None:
+    if hashlib.sha256(FACTORY_PATH.read_bytes()).hexdigest() != PINNED_SHA256:
+        raise RuntimeError(f"{FACTORY_PATH.name} does not match the pinned factory hash")
+
+
+def build_directory_text(entries: list[dict]) -> str:
+    """The directory file rebuilt from key/value entries: the current file's
+    own header (intro + slot legend) followed by every entry. Raises
+    ValueError rather than return text the app could not start with."""
+    base = DIRECTORY_PATH.read_text(encoding="utf-8")
+    first = _TAB.search(base)
+    header = base[: first.start()] if first else base
+    parts = []
+    for e in entries:
+        key, value = e["key"].strip(), e["value"].strip()
+        if "\n" in key:
+            raise ValueError(f"key {key!r} must be a single line")
+        parts.append(value if value.startswith(f"## {key}") else f"## {key}\n{value}")
+    text = header + "\n\n".join(parts) + "\n"
+
+    if [t for t, _ in _sections(text, _TAB)] != [e["key"].strip() for e in entries]:
+        raise ValueError("an entry's text contains its own '## ' heading, which would split it into extra tabs")
+    if not parse_text(text):  # also raises if a block has no Exact Text
+        raise ValueError("no blocks left -- the AI would have no block names to use")
+    return text
+
+
+def write_default(entries: list[dict]) -> None:
+    """Make `entries` the new default copy on disk (Set as default). Takes
+    full effect after a restart: the block-name enum is built at import."""
+    text = build_directory_text(entries)
+    DIRECTORY_PATH.write_text(text, encoding="utf-8")
+    SHA_SIDECAR_PATH.write_text(hashlib.sha256(text.encode("utf-8")).hexdigest() + "\n", encoding="utf-8")
+
+
+def restore_factory() -> None:
+    verify_factory()
+    DIRECTORY_PATH.write_bytes(FACTORY_PATH.read_bytes())
+    SHA_SIDECAR_PATH.unlink(missing_ok=True)

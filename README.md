@@ -99,6 +99,21 @@ Other behavior worth knowing:
   backend/model, edit the system prompts, manage the skills library, and
   view recent error logs — all without touching code or restarting by hand.
 
+## Student levels and block references
+
+In **Admin → Manage student levels**, an admin can add, edit and remove
+levels (for example *Spark* and *Excel*). Students pick one from a dropdown
+before asking, and the level's prompt is added to the system prompt for that
+student.
+
+Each level can also be given specific **directory context** entries (the R
+Block reference text, one key per directory tab such as Control or Motion).
+A level that picks tabs may only use those tabs' blocks: the model's answer
+format is limited to them, and the prompt says so. "Set as default", "Recover
+to default" and "Reset factory" manage the default copy
+(`vendor/r-block-directory.md`; the original is kept in
+`vendor/r-block-directory.factory.md`).
+
 ## Hosting it locally
 
 ### Requirements
@@ -140,8 +155,12 @@ OLLAMA_MODEL=gemma4:12b-it-qat
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-flash-latest
 OPENROUTER_API_KEY=
-OPENROUTER_MODEL=deepseek/deepseek-v4-flash-0731
+OPENROUTER_MODEL=openai/gpt-6-luna
+# Tried in order if the model above fails (comma-separated)
+OPENROUTER_FALLBACK_MODEL=deepseek/deepseek-v4.1-flash-1017,anthropic/claude-haiku-5.5
 OPENROUTER_TIMEOUT_SECONDS=180
+# Cut a slow attempt after this many seconds and retry once (0 = off)
+ASK_ATTEMPT_TIMEOUT_SECONDS=60
 
 ELEVENLABS_API_KEY=               # optional, for Voice replies
 

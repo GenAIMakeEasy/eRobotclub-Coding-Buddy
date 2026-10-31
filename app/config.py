@@ -206,6 +206,14 @@ OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "google/gemma-4-26b-a4b-it
 # finish rather than being cut off right before it would have succeeded.
 OPENROUTER_TIMEOUT_SECONDS = float(os.environ.get("OPENROUTER_TIMEOUT_SECONDS", "180"))
 
+# Per-attempt cut-off for a STUDENT question (app/llm/pipeline.py's answer()):
+# an attempt still running after this many seconds is abandoned and retried
+# once, since a slow provider's second try is usually fast (observed live).
+# Separate from the backend timeouts above, which stay the hard ceiling and
+# still govern admin-side calls like the skill-save block render. 0 = off
+# (the default -- a slow local Ollama can legitimately need minutes).
+ASK_ATTEMPT_TIMEOUT_SECONDS = float(os.environ.get("ASK_ATTEMPT_TIMEOUT_SECONDS", "0"))
+
 # Caught live: switching OPENROUTER_MODEL to qwen/qwen3-30b-a3b-instruct-2507
 # (better text/JSON quality, chosen after OPENROUTER_MODEL's own default
 # above was pinned) silently broke every image-attached call -- OpenRouter

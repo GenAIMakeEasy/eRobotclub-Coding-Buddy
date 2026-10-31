@@ -9,4 +9,7 @@ __pycache__/
 .pytest_cache/
 .agents/
 .claude/
+# local configuration
+data/levels.json
+data/directory_context.json
 benchmark/

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>R Block Coding Buddy — Levels</title>
+<link rel="icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: oklch(0.968 0.006 78);
+    color: oklch(0.245 0.015 60);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+    padding: 32px 16px 80px 16px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  .top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  h1 { font-size: 20px; font-weight: 650; margin: 0; }
+  .back { font-size: 13px; color: oklch(0.640 0.155 52); text-decoration: none; font-weight: 600; }
+  .sub { font-size: 13px; color: oklch(0.615 0.012 62); margin-bottom: 22px; }
+  .card {
+    background: #fff; border: 1px solid oklch(0.905 0.007 70); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 16px; box-shadow: 0 2px 10px oklch(0.2 0 0 / 0.04);
+  }
+  label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.6px; color: oklch(0.455 0.014 60); margin: 0 0 6px 0; }
+  input[type=text], input[type=password], textarea {
+    width: 100%; padding: 10px 12px; border-radius: 9px; border: 1.5px solid oklch(0.905 0.007 70);
+    font-size: 14px; font-family: inherit; outline: none; background: oklch(0.985 0.004 84);
+  }
+  textarea { font-size: 13px; line-height: 1.5; min-height: 120px; resize: vertical; margin-top: 10px; }
+  input:focus, textarea:focus { border-color: oklch(0.640 0.155 52); }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .pill-btn {
+    padding: 7px 14px; border-radius: 8px; border: 1.5px solid oklch(0.905 0.007 70);
+    background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; color: oklch(0.360 0.02 60);
+  }
+  .pill-btn.danger { color: oklch(0.450 0.150 25); }
+  .primary-btn {
+    padding: 13px; border-radius: 11px; border: none; width: 100%; margin-top: 8px;
+    background: oklch(0.640 0.155 52); color: #fff; font-size: 15px; font-weight: 650;
+    font-family: inherit; cursor: pointer;
+  }
+  .primary-btn:disabled { opacity: 0.5; }
+  .status { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; display: none; }
+  .status.ok { display: block; background: oklch(0.968 0.018 155); color: oklch(0.360 0.075 155); border: 1px solid oklch(0.870 0.045 155); }
+  .status.err { display: block; background: oklch(0.963 0.026 25); color: oklch(0.330 0.075 30); border: 1px solid oklch(0.855 0.090 25); }
+  #loginCard { max-width: 440px; margin: 40px auto; }
+  h2 { font-size: 16px; margin: 28px 0 4px 0; }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
+  .checks label { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 13px; margin: 0; display: flex; gap: 5px; align-items: center; cursor: pointer; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: 999px;
+    background: oklch(0.960 0.028 62); color: oklch(0.470 0.135 48); font-size: 13px; font-weight: 600; }
+  .chip button { border: none; background: none; cursor: pointer; font-size: 15px; line-height: 1; color: inherit; padding: 0 3px; }
+  .checks select { padding: 5px 8px; border-radius: 8px; border: 1.5px solid oklch(0.905 0.007 70); font-size: 13px; font-family: inherit; background: #fff; }
+  .hint { font-size: 12.5px; color: oklch(0.615 0.012 62); margin-top: 10px; line-height: 1.5; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; min-height: 140px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card" id="loginCard" style="display:none;">
+    <h1>R Block Buddy — Levels</h1>
+    <div class="sub">Log in to manage student levels.</div>
+    <label>Admin password</label>
+    <input type="password" id="password" placeholder="Password" />
+    <button class="primary-btn" id="loginBtn">Log in</button>
+    <div class="status" id="loginStatus"></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="top">
+      <h1>Levels</h1>
+      <a href="/admin.html" class="back">← Back to admin</a>
+    </div>
+    <div class="sub">Students pick one of these from a dropdown before asking. The prompt is added to the instructions sent to the model for that student. With no levels, the dropdown is hidden.</div>
+
+    <div id="list"></div>
+    <button class="pill-btn" id="addBtn">+ Add level</button>
+
+    <h2>Directory context</h2>
+    <div class="sub">The block reference text (<code>{directory_context}</code> in the system prompt), as key → value entries. Pick the keys each level should receive above (only keys listed here can be chosen). A level with none picked uses the normal automatic selection. This changes the prompt text only — which block names the AI may use is still fixed by the app. Renaming a key keeps it assigned; removing one unassigns it everywhere.</div>
+    <div id="dirList"></div>
+    <button class="pill-btn" id="addDirBtn">+ Add entry</button>
+    <div class="row" style="margin-top:12px; flex-wrap:wrap;">
+      <button class="pill-btn" id="setDefaultBtn">Set as default</button>
+      <button class="pill-btn" id="recoverBtn">Recover to default</button>
+      <button class="pill-btn danger" id="factoryBtn">Reset factory</button>
+    </div>
+    <div class="hint"><b>Set as default</b> saves your edits, then rewrites the default copy (<code>vendor/r-block-directory.md</code>); restart the server afterwards to apply it to the block-name rules. <b>Recover to default</b> replaces the entries above with the default copy. <b>Reset factory</b> restores the original shipped directory into both the default copy and the entries. Normal <b>Save all changes</b> only saves the entries used by levels.</div>
+    <button class="primary-btn" id="saveBtn">Save all changes</button>
+    <div class="status" id="status"></div>
+  </div>
+
+</div>
+
+<script>
+let token = sessionStorage.getItem('admin_token');
+let levels = [];
+let directory = [];
+const el = (id) => document.getElementById(id);
+const showStatus = (id, msg, ok) => {
+  const s = el(id);
+  s.textContent = msg;
+  s.className = 'status ' + (ok ? 'ok' : 'err');
+};
+
+async function api(path, opts) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts && opts.headers) },
+  });
+  if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
+  return res;
+}
+
+function showLogin() {
+  token = null;
+  sessionStorage.removeItem('admin_token');
+  el('loginCard').style.display = 'block';
+  el('app').style.display = 'none';
+}
+
+function render() {
+  const list = el('list');
+  list.innerHTML = '';
+  levels.forEach((lv, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const row = document.createElement('div');
+    row.className = 'row';
+    const name = document.createElement('input');
+    name.type = 'text'; name.placeholder = 'Level name, e.g. Beginner'; name.value = lv.name; name.maxLength = 60;
+    name.addEventListener('input', () => { lv.name = name.value; });
+    const del = document.createElement('button');
+    del.className = 'pill-btn danger'; del.textContent = 'Remove';
+    del.addEventListener('click', () => { levels.splice(i, 1); render(); });
+    row.append(name, del);
+    const prompt = document.createElement('textarea');
+    prompt.placeholder = 'Prompt added for this level, e.g. "The student is a beginner: use the simplest blocks, one idea per phase."';
+    prompt.value = lv.prompt;
+    prompt.addEventListener('input', () => { lv.prompt = prompt.value; });
+    card.append(row, prompt);
+    if (directory.length) {
+      const wrap = document.createElement('div');
+      wrap.className = 'checks';
+      const lab = document.createElement('div');
+      lab.className = 'hint'; lab.style.margin = '10px 0 0 0';
+      lab.textContent = 'Directory context for this level (none = automatic). Pick from the existing keys:';
+      const valid = directory.map((d) => d.key).filter((k) => k.trim());
+      lv.directory_keys = (lv.directory_keys || []).filter((k) => valid.includes(k));
+      lv.directory_keys.forEach((k) => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.append(k + ' ');
+        const x = document.createElement('button');
+        x.type = 'button'; x.textContent = '×';
+        x.addEventListener('click', () => { lv.directory_keys = lv.directory_keys.filter((v) => v !== k); render(); });
+        chip.append(x);
+        wrap.append(chip);
+      });
+      const sel = document.createElement('select');
+      const ph = document.createElement('option');
+      ph.value = ''; ph.textContent = '+ Add key…';
+      sel.append(ph);
+      valid.forEach((k) => {
+        const o = document.createElement('option');
+        o.value = k; o.textContent = k;
+        o.disabled = lv.directory_keys.includes(k);  // already chosen: greyed out
+        sel.append(o);
+      });
+      sel.addEventListener('change', () => {
+        if (sel.value) { lv.directory_keys.push(sel.value); render(); }
+      });
+      wrap.append(sel);
+      card.append(lab, wrap);
+    }
+    list.append(card);
+  });
+}
+
+function renderDirectory() {
+  const box = el('dirList');
+  box.innerHTML = '';
+  directory.forEach((d, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const row = document.createElement('div');
+    row.className = 'row';
+    const key = document.createElement('input');
+    key.type = 'text'; key.placeholder = 'Key, e.g. Motion'; key.value = d.key; key.maxLength = 60;
+    key.addEventListener('input', () => {
+      levels.forEach((lv) => { lv.directory_keys = (lv.directory_keys || []).map((k) => (k === d.key ? key.value : k)); });
+      d.key = key.value;
+    });
+    key.addEventListener('change', render);  // refresh the per-level checkboxes
+    const del = document.createElement('button');
+    del.className = 'pill-btn danger'; del.textContent = 'Remove';
+    del.addEventListener('click', () => {
+      levels.forEach((lv) => { lv.directory_keys = (lv.directory_keys || []).filter((k) => k !== d.key); });
+      directory.splice(i, 1); renderDirectory(); render();
+    });
+    row.append(key, del);
+    const value = document.createElement('textarea');
+    value.className = 'mono'; value.value = d.value;
+    value.placeholder = 'Text sent to the model for this key (block names, exact text, remarks…)';
+    value.addEventListener('input', () => { d.value = value.value; });
+    card.append(row, value);
+    box.append(card);
+  });
+}
+
+async function loadLevels() {
+  const [res, dres] = await Promise.all([api('/admin/levels'), api('/admin/directory-context')]);
+  if (!res.ok || !dres.ok) throw new Error('levels unavailable: ' + res.status + '/' + dres.status);
+  levels = await res.json();
+  directory = await dres.json();
+  renderDirectory();
+  render();
+}
+
+el('addDirBtn').addEventListener('click', () => { directory.push({ key: '', value: '' }); renderDirectory(); });
+async function directoryAction(path, confirmText, saveFirst) {
+  if (!confirm(confirmText)) return;
+  try {
+    if (saveFirst) {
+      const sres = await api('/admin/directory-context', { method: 'PUT', body: JSON.stringify(directory) });
+      const sbody = await sres.json().catch(() => ({}));
+      if (!sres.ok) { showStatus('status', typeof sbody.detail === 'string' ? sbody.detail : 'Save failed.', false); return; }
+      directory = sbody;
+    }
+    const res = await api(path, { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { showStatus('status', typeof body.detail === 'string' ? body.detail : 'Action failed.', false); return; }
+    directory = body.entries;
+    const lres = await api('/admin/levels');
+    if (lres.ok) levels = await lres.json();
+    renderDirectory(); render();
+    showStatus('status', body.note, true);
+  } catch (e) {
+    if (e.message !== 'unauthorized') showStatus('status', 'Could not reach the server.', false);
+  }
+}
+el('setDefaultBtn').addEventListener('click', () => directoryAction('/admin/directory-context/set-default',
+  'Save these entries and overwrite the default copy (r-block-directory.md)? Block names may change after a restart.', true));
+el('recoverBtn').addEventListener('click', () => directoryAction('/admin/directory-context/recover',
+  'Replace the entries above with the default copy? Unsaved edits and added entries are lost.', false));
+el('factoryBtn').addEventListener('click', () => directoryAction('/admin/directory-context/factory-reset',
+  'Reset BOTH the default copy and the entries to the original factory directory? Your edits are lost.', false));
+el('addBtn').addEventListener('click', () => { levels.push({ id: null, name: '', prompt: '' }); render(); });
+
+el('saveBtn').addEventListener('click', async () => {
+  el('saveBtn').disabled = true;
+  try {
+    // Directory first: levels are saved against the keys that now exist.
+    const dres = await api('/admin/directory-context', { method: 'PUT', body: JSON.stringify(directory) });
+    const dbody = await dres.json().catch(() => ({}));
+    if (!dres.ok) {
+      const d = dbody.detail;
+      showStatus('status', typeof d === 'string' ? d : 'Save failed — every directory entry needs a unique key.', false);
+      return;
+    }
+    directory = dbody;
+    const res = await api('/admin/levels', { method: 'PUT', body: JSON.stringify(levels) });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const d = body.detail;
+      showStatus('status', typeof d === 'string' ? d : 'Save failed — every level needs a name.', false);
+      return;
+    }
+    levels = body;
+    renderDirectory();
+    render();
+    showStatus('status', 'Saved and applied — students see it on their next page load.', true);
+  } catch (e) {
+    showStatus('status', 'Could not reach the server.', false);
+  } finally {
+    el('saveBtn').disabled = false;
+  }
+});
+
+el('loginBtn').addEventListener('click', async () => {
+  try {
+    const res = await fetch('/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: el('password').value }),
+    });
+    if (!res.ok) { showStatus('loginStatus', 'Wrong password, or admin login is not configured.', false); return; }
+    token = (await res.json()).token;
+    sessionStorage.setItem('admin_token', token);
+    el('loginCard').style.display = 'none';
+    el('app').style.display = 'block';
+    await loadLevels();
+  } catch (e) {
+    showStatus('loginStatus', 'Could not reach the server.', false);
+  }
+});
+
+(async function init() {
+  if (!token) { showLogin(); return; }
+  try {
+    el('loginCard').style.display = 'none';
+    el('app').style.display = 'block';
+    await loadLevels();
+  } catch (e) {
+    // 401 already showed the login screen (api()); anything else is a real
+    // error -- most likely the server hasn't been restarted since this
+    // feature was added -- so say so instead of asking for a login again.
+    if (token) showStatus('status', 'Could not load levels — restart the server (Admin → Restart server) so it picks up the new code.', false);
+  }
+})();
+</script>
+</body>
+</html>

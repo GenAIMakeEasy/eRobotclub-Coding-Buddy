@@ -1022,7 +1022,7 @@ function ScreenEntry({ lang, setLang, mode, setMode, economy, setEconomy, tts, s
   );
 }
 
-function ScreenAsk({ lang, setLang, mode, onBack, onSubmit }) {
+function ScreenAsk({ lang, setLang, mode, levels, level, setLevel, onBack, onSubmit }) {
   const t = T[lang];
   const [question, setQuestion] = useState('');
   const [photo, setPhoto] = useState(null); // { dataUrl, base64, name, size }
@@ -1056,6 +1056,21 @@ function ScreenAsk({ lang, setLang, mode, onBack, onSubmit }) {
 
       <div style={{ padding: '22px 16px 0 16px', flex: 1 }}>
         <div style={{ fontSize: 24, fontWeight: 300, letterSpacing: -0.6, color: C.ink, lineHeight: 1.25 }}>{t.askQ}</div>
+
+        {levels.length > 0 && (
+          <select
+            data-level="select"
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+            style={{
+              marginTop: 14, width: '100%', padding: '11px 12px', borderRadius: 12,
+              border: `1px solid ${C.hair}`, background: C.card, color: C.ink,
+              fontSize: 15, fontFamily: 'inherit',
+            }}>
+            <option value="">Level…</option>
+            {levels.map(lv => <option key={lv.id} value={lv.id}>{lv.name}</option>)}
+          </select>
+        )}
 
         <div style={{
           marginTop: 16, background: C.card, border: `1px solid ${C.hair}`,
@@ -1804,6 +1819,14 @@ function App() {
   // to off each visit) sidesteps that rather than fixing the hook for a
   // case that doesn't otherwise arise.
   const [economy, setEconomy] = useState(false);
+  // Student level (admin-managed list, /levels). The chosen id is remembered
+  // per device like lang/mode; '' = none. An id the admin has since removed
+  // is ignored on send (see sendToServer) rather than cleaned up here.
+  const [level, setLevel] = usePersisted('rblock_level', '');
+  const [levels, setLevels] = useState([]);
+  useEffect(() => {
+    fetch('/levels').then(r => (r.ok ? r.json() : [])).then(setLevels).catch(() => {});
+  }, []);
   // Same non-persisted reasoning as `economy` above, plus a second one:
   // this is a SHARED classroom device (Mac mini, one browser per student
   // seat) -- audio autoplaying by default for whoever sits down next,
@@ -1877,6 +1900,7 @@ function App() {
           question, image_base64: imageBase64,
           economy: mode === 'build' && economy,
           continue_thread: continueThread,
+          level: levels.some(lv => lv.id === level) ? level : null,
         }),
       });
       if (!res.ok) throw new Error('ask failed: ' + res.status);
@@ -2028,7 +2052,7 @@ function App() {
   if (screen === 'entry') {
     screenEl = <ScreenEntry lang={lang} setLang={setLang} mode={mode} setMode={setMode} economy={economy} setEconomy={setEconomy} tts={tts} setTts={setTts} onGo={() => setScreen('ask')} recentThreads={recentThreads} onResume={resumeThread} />;
   } else if (screen === 'ask') {
-    screenEl = <ScreenAsk lang={lang} setLang={setLang} mode={mode} onBack={() => setScreen('entry')} onSubmit={submit} />;
+    screenEl = <ScreenAsk lang={lang} setLang={setLang} mode={mode} levels={levels} level={level} setLevel={setLevel} onBack={() => setScreen('entry')} onSubmit={submit} />;
   } else if (screen === 'queue') {
     screenEl = <ScreenQueue lang={lang} setLang={setLang} status={queueState.status} position={queueState.position} wait={queueState.wait} startedAt={queueState.startedAt} />;
   } else if (screen === 'thread' && thread.length) {
